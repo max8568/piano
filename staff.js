@@ -68,7 +68,9 @@ function voiceOf(tickables) {
 export function createStaff(scroller, header) {
   const renderer = new Renderer(scroller, Renderer.Backends.SVG);
   const headerRenderer = new Renderer(header, Renderer.Backends.SVG);
-  // 上次畫出的每個符頭：{ beatIndex, pitch, x, y }，x、y 為符頭中心（畫面 px，相對於樂譜左上角）。
+  // 上次畫出的每個符頭：{ beatIndex, pitch, x, y, element, move }。
+  // x、y 為符頭中心（畫面 px，相對於樂譜左上角）；element 是拖曳時要移動的 SVG 元素，
+  // move(dx, dy) 把它移開 dx、dy（畫面 px），move(0, 0) 放回原位。
   let heads = [];
 
   // rightReserve：畫面右側要留空的寬度（px），確保最新音符能捲到它的左邊。
@@ -124,11 +126,18 @@ export function createStaff(scroller, header) {
             note.pitches.forEach((pitch, k) => {
               // 和弦裡相鄰二度的符頭會往旁邊錯開，所以 x 取各個符頭自己的位置。
               const headX = note.noteHeads?.[k]?.getAbsoluteX() ?? note.getAbsoluteX();
+              // 單音就整個音符（含符幹、升降記號）一起移動；和弦只移動被按住的那顆符頭。
+              const element = note.pitches.length === 1 ? note.getSVGElement() : note.noteHeads[k].getSVGElement();
               heads.push({
                 beatIndex: i * BEATS_PER_MEASURE + b,
                 pitch,
                 x: (headX + NOTE_HEAD_WIDTH / 2) * scale,
                 y: ys[k] * scale,
+                element,
+                move(dx, dy) {
+                  if (dx === 0 && dy === 0) element.removeAttribute('transform');
+                  else element.setAttribute('transform', `translate(${dx / scale} ${dy / scale})`);
+                },
               });
             });
           });

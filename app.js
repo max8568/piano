@@ -56,8 +56,8 @@ function render() {
   scroller.scrollLeft = latestRight === null ? 0 : latestRight - center;
 }
 
-// 長按音符再上滑就刪掉它。刪除後停在原本看的位置，不跳回最新音符。
-attachDeleteGesture(scroller, document.getElementById('delete-marker'), {
+// 長按音符後它會跟著手指移動，往上拉再放開就刪掉它。刪除後停在原本看的位置，不跳回最新音符。
+attachDeleteGesture(scroller, {
   noteAt: staff.noteAt,
   onDelete({ beatIndex, pitch }) {
     removeNote(score, beatIndex, pitch);

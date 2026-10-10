@@ -81,23 +81,22 @@ body {
   pointer-events: none;
 }
 
-.delete-marker {
-  position: absolute;
-  width: 36px;
-  height: 36px;
-  margin: -18px 0 0 -18px;
-  border: 3px solid #e0393e;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.delete-marker[hidden] {
-  display: none;
+/* 長按選中、正跟著手指移動的音符 */
+.staff .dragging,
+.staff .dragging * {
+  fill: #2b6cd4;
+  stroke: #2b6cd4;
 }
 
 /* 上滑到刪除距離：放開就會刪掉 */
-.delete-marker.deleting {
-  background: rgba(224, 57, 62, 0.35);
+.staff .dragging.deleting,
+.staff .dragging.deleting * {
+  fill: #e0393e;
+  stroke: #e0393e;
+}
+
+.staff .dragging.deleting {
+  opacity: 0.5;
 }
 
 .staff-header::after {

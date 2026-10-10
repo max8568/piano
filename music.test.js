@@ -38,3 +38,8 @@ test('midi 編號', () => {
   assert.equal(midi({ letter: 'b', octave: 3, accidental: '#' }), 60);
   assert.equal(midi({ letter: 'c', octave: 2, accidental: '' }), 36);
 });
+
+test('Tone 用的音名：升降都能表示', () => {
+  assert.equal(pitchName({ letter: 'c', octave: 4, accidental: '#' }), 'C#4');
+  assert.equal(pitchName({ letter: 'd', octave: 4, accidental: 'b' }), 'Db4');
+});

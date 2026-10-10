@@ -1,8 +1,12 @@
 import { createStaff } from './staff.js';
 import { createKeyboard } from './keyboard.js';
 import { createScore, press } from './score.js';
+import { createPiano } from './sound.js';
 
 const score = createScore();
+const piano = createPiano();
+// iOS 有時只在 touchend 才允許啟動音訊，所以除了按鍵當下，放開時也再試一次。
+document.addEventListener('touchend', piano.unlock);
 const scroller = document.getElementById('staff-scroll');
 const staff = createStaff(scroller, document.getElementById('staff-header'));
 
@@ -28,8 +32,13 @@ function render() {
 createKeyboard(document.getElementById('keyboard'), {
   blackMode: () => blackMode,
   onPress(pitch) {
+    // 先發聲再重畫，讓重畫的時間不影響聲音的延遲。
+    piano.noteOn(pitch);
     press(score, pitch, performance.now());
     render();
+  },
+  onRelease(pitch) {
+    piano.noteOff(pitch);
   },
 });
 

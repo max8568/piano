@@ -19,7 +19,7 @@ function precacheList() {
 
 // App 執行時會用到的檔案：除了測試、說明文件與開發設定以外的所有檔案。
 function runtimeFiles(dir = '.') {
-  const skip = /^(\.|node_modules$|README\.md$|package\.json$|release\.js$|sw\.js$|.*\.test\.js$|icons\/icon\.svg$)/;
+  const skip = /^(\.|node_modules$|README\.md$|package\.json$|release\.js$|serve\.js$|sw\.js$|.*\.test\.js$|icons\/icon\.svg$)/;
   return readdirSync(dir).flatMap((name) => {
     const path = dir === '.' ? name : join(dir, name);
     if (skip.test(name) || skip.test(path)) return [];

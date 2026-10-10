@@ -289,6 +289,107 @@ body {
   pointer-events: none;
 }
 
+/* 開場動畫：結束前鍵盤與五線譜藏在畫面外，結束時滑進來 */
+.staff,
+.keyboard {
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.6s ease-out;
+}
+
+body.intro .staff {
+  opacity: 0;
+  transform: translateY(-40px);
+}
+
+body.intro .keyboard {
+  transform: translateY(100%);
+}
+
+/* 叢林場景由 intro.js 產生，動畫也在 intro.js 裡（Web Animations） */
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  overflow: hidden;
+  background: #a3bfb3;
+  transition: opacity 0.7s ease-out;
+}
+
+.intro-overlay.leaving {
+  opacity: 0;
+}
+
+.intro-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  /* 樹冠下的天光，從樹葉縫隙露出來；上方被樹冠遮住比較暗 */
+  background: linear-gradient(#8faea1, #a3bfb3 45%, #94b2a5);
+}
+
+/* 比畫面大一點，走路晃動時邊緣不會露出來 */
+.intro-camera {
+  position: absolute;
+  inset: -4%;
+}
+
+.intro-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 45%; /* 消失點：往前走時每層都以這裡為中心放大 */
+}
+
+.intro-staff {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: min(44vw, 520px);
+  translate: -50% -50%;
+  overflow: visible;
+  fill: #fffdf4;
+  /* 底下是花花綠綠的葉子，先用深綠描邊再加一點暖光，才看得清楚 */
+  filter: drop-shadow(0 0 1.5px rgba(10, 40, 25, 0.95)) drop-shadow(0 0 5px rgba(10, 40, 25, 0.7)) drop-shadow(0 0 12px rgba(255, 240, 180, 0.6));
+}
+
+.intro-prompt {
+  position: absolute;
+  left: 50%;
+  top: 64%;
+  translate: -50% 0;
+  padding: 10px 28px;
+  border-radius: 999px;
+  background: rgba(16, 52, 34, 0.6);
+  color: #fffdf4;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em; /* 抵銷最後一個字後面的字距，讓文字置中 */
+  white-space: nowrap;
+  opacity: 0;
+}
+
+/* 五線譜和包著它的霧：一起從草叢中間長大，以五線譜中心為縮放中心 */
+.intro-staff-group {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 42%;
+}
+
+/* 五線譜前面的霧團：中間濃、邊緣淡的一團，位置對齊五線譜的中心 */
+.intro-mist {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: min(30vw, 360px);
+  height: min(18vw, 220px);
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(230, 238, 232, 0.95), rgba(230, 238, 232, 0.55) 45%, rgba(230, 238, 232, 0));
+  opacity: 0;
+  pointer-events: none;
+}
+
 .rotate-hint {
   display: none;
 }

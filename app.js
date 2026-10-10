@@ -4,6 +4,9 @@ import { createScore, press, removeNote, clearScore } from './score.js';
 import { attachDeleteGesture } from './delete-gesture.js';
 import { createPiano } from './sound.js';
 import { VERSION } from './version.js';
+import { playIntro } from './intro.js';
+
+playIntro(document.getElementById('intro'));
 
 const score = createScore();
 document.getElementById('version').textContent = `v${VERSION}`;

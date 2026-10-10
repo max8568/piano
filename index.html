@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="intro">
   <main class="app">
     <section class="staff" aria-label="五線譜">
       <div id="staff-scroll" class="staff-scroll"></div>
@@ -37,6 +37,8 @@
   <div id="version" class="version"></div>
   <div id="audio-chip" class="audio-chip" role="status">音色載入中…</div>
   <pre id="debug" class="debug" hidden></pre>
+
+  <div id="intro" class="intro-overlay" aria-hidden="true"></div>
 
   <div class="rotate-hint" role="alert">
     <div class="rotate-icon">⟳</div>

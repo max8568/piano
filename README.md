@@ -1,5 +1,6 @@
 # 鋼琴五線譜
 
+開啟時先播開場動畫：第一人稱走進有動物的叢林，五線譜從草叢中間撥開煙霧、由小到大浮現，停在這裡顯示「點一下開始」；點下去啟動聲音，鍵盤與五線譜滑進畫面。
 在 iPad 上按琴鍵，就會在上方的大譜表依序寫出四分音符。
 長按譜上的音符，它會變藍並跟著手指移動；往上拉到變紅再放開，就能刪掉那個音符。
 右上角的「清除」會刪掉所有音符：按一下變成「確定清除？」，3 秒內再按一下才會清除。
@@ -11,9 +12,13 @@
 不需要建置工具。因為使用 ES modules，需要透過網頁伺服器開啟：
 
 ```sh
-npm run serve   # http://localhost:8000
+npm run serve   # 啟動後會印出本機與 iPad 用的網址
 npm test        # 單元測試（Node 內建 test runner）
 ```
+
+在 iPad 上測試不用推上 GitHub Pages：Mac 與 iPad 連同一個 Wi-Fi，`npm run serve` 後用 iPad 的 Safari 開啟印出的 `http://192.168.x.x:8000`。
+伺服器不讓瀏覽器快取，改完檔案在 iPad 重新整理就是新版。
+用區網 IP 開啟時沒有 Service Worker（瀏覽器只在 https 或 localhost 提供），離線功能要在 GitHub Pages 上測。
 
 ## 安裝到 iPad（PWA）
 

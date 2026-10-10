@@ -4,7 +4,7 @@
 // 不在背景零星更新，避免新舊檔案混雜（例如新的 index.html 配舊的 app.js）。
 // 發佈新版時執行 `npm run release`：VERSION 加一（同步 version.js，畫面左上角會顯示）並重算 HASHES。
 // sw.js 內容一變，瀏覽器就會安裝新版；新版下載完所有檔案、核對過指紋才接手並清掉舊快取。
-const VERSION = 16;
+const VERSION = 17;
 const CACHE = `piano-v${VERSION}`;
 
 // 程式與頁面檔案的 SHA-256 指紋（前 16 碼），由 `npm run release` 產生，npm test 會檢查是否最新。
@@ -12,16 +12,17 @@ const CACHE = `piano-v${VERSION}`;
 // 舊版繼續完整運作，下次開啟 App 再重試。
 // HASHES-BEGIN
 const HASHES = {
-  'index.html': '22192a728c81ea7f',
-  'styles.css': 'befa99f8172768ef',
-  'app.js': 'f731350924ae8e75',
-  'version.js': '52135db3120ce865',
+  'index.html': '149b4ca30aed3a0f',
+  'styles.css': 'e0290145da3e3682',
+  'app.js': '6b8da446d9e8b9ee',
+  'version.js': '34729b906f0d316b',
   'music.js': '996c1d0011673ed4',
   'score.js': '2b97ec057f218d8e',
   'staff.js': '66d121a8f4835ef6',
   'keyboard.js': 'dd87f4be9657fbb3',
   'delete-gesture.js': '57443a43b0137fcd',
   'sound.js': '369bf981761a1ca0',
+  'intro.js': '35c55aaeb642e48d',
   'vendor/vexflow.js': 'e99d9f8d7ebcb88f',
   'vendor/tone.js': 'a2434ccdddd2b477',
   'manifest.webmanifest': '1d3126ac2dcd2204',
@@ -44,6 +45,7 @@ const PRECACHE = [
   'keyboard.js',
   'delete-gesture.js',
   'sound.js',
+  'intro.js',
   'vendor/vexflow.js',
   'vendor/tone.js',
   'manifest.webmanifest',

@@ -2,7 +2,7 @@
 import { staffFor, staffPosition, vexKey } from './music.js';
 import { measures, isComplete, accidentalMarks, splitAtBeats, EIGHTHS_PER_BEAT, EIGHTHS_PER_MEASURE } from './score.js';
 
-const { Renderer, Stave, StaveNote, GhostNote, Voice, Formatter, StaveConnector, Barline, Accidental, Beam, StaveTie } = Vex.Flow;
+const { Renderer, Stave, StaveNote, GhostNote, Voice, Formatter, StaveConnector, Barline, Accidental, Beam, StaveTie, Stem } = Vex.Flow;
 
 // 以下為 VexFlow 的「虛擬座標」，實際畫面再依高度等比例縮放。
 const VIRTUAL_HEIGHT = 260; // 足夠容納 C6（上加兩線）到 C2（下加兩線）
@@ -45,7 +45,8 @@ const DURATION = { 1: '8', 2: 'q', 4: 'h', 8: 'w' };
 // 和弦拆開後的一段（piece，見 splitAtBeats）在某一行（高音或低音譜）的音符；
 // 這行沒有音就用同樣長度的 GhostNote 佔位，讓上下對齊。
 // marks：與 chord.pitches 對應的升降／還原記號（見 accidentalMarks），只標在第一段，連結線後面的不重複標。
-function pieceNote(chord, piece, marks, staff, first) {
+// stemDirection：符幹方向（Stem.UP／Stem.DOWN）；不給就依音高自動決定。
+function pieceNote(chord, piece, marks, staff, first, stemDirection = null) {
   const duration = DURATION[piece.eighths];
   const entries = chord.pitches
     .map((pitch, i) => ({ pitch, mark: marks[i] }))
@@ -53,7 +54,12 @@ function pieceNote(chord, piece, marks, staff, first) {
     .sort((a, b) => staffPosition(a.pitch) - staffPosition(b.pitch));
   const note = entries.length === 0
     ? new GhostNote({ duration })
-    : new StaveNote({ clef: staff, keys: entries.map(({ pitch }) => vexKey(pitch)), duration, auto_stem: true });
+    : new StaveNote({
+        clef: staff,
+        keys: entries.map(({ pitch }) => vexKey(pitch)),
+        duration,
+        ...(stemDirection ? { stem_direction: stemDirection } : { auto_stem: true }),
+      });
   note.start = piece.start;
   if (entries.length === 0) return note;
   if (first) {
@@ -68,41 +74,54 @@ function pieceNote(chord, piece, marks, staff, first) {
 
 // 一個小節在某一行的音符、連結線與符槓。
 function staffVoice(measure, marks, staff) {
-  const notes = [];
-  const ties = [];
+  const specs = [];
   measure.forEach((chord, c) => {
-    let previous = null;
-    splitAtBeats(chord.start, chord.eighths).forEach((piece, k) => {
-      const note = pieceNote(chord, piece, marks[c], staff, k === 0);
-      if (previous?.pitches) {
-        const indices = previous.pitches.map((_, i) => i);
-        ties.push(new StaveTie({ first_note: previous, last_note: note, first_indices: indices, last_indices: indices }));
-      }
-      notes.push(note);
-      previous = note;
-    });
+    splitAtBeats(chord.start, chord.eighths).forEach((piece, k) => specs.push({ chord, piece, marks: marks[c], first: k === 0 }));
   });
+  const make = (spec, stemDirection) => pieceNote(spec.chord, spec.piece, spec.marks, staff, spec.first, stemDirection);
+  const notes = specs.map((spec) => make(spec));
+
+  // 連符槓的一組音符符幹要朝同一邊：依整組音的平均位置決定（在中間線或以上朝下，以下朝上），
+  // 一開始就照這個方向建立音符。若讓 Beam 事後改方向，VexFlow 不會跟著移動符頭，
+  // 符幹會接在符頭錯的那一邊。
+  const groups = beamGroups(notes);
+  for (const group of groups) {
+    const lines = group.flatMap((i) => notes[i].getKeyProps().map((props) => props.line));
+    const average = lines.reduce((sum, line) => sum + line, 0) / lines.length;
+    const direction = average >= 3 ? Stem.DOWN : Stem.UP;
+    for (const i of group) notes[i] = make(specs[i], direction);
+  }
+
+  const ties = [];
+  notes.forEach((note, i) => {
+    const previous = notes[i - 1];
+    if (specs[i].first || !previous?.pitches) return;
+    const indices = previous.pitches.map((_, k) => k);
+    ties.push(new StaveTie({ first_note: previous, last_note: note, first_indices: indices, last_indices: indices }));
+  });
+  const beams = groups.map((group) => new Beam(group.map((i) => notes[i])));
   const length = measure.reduce((sum, chord) => sum + chord.eighths, 0);
   const voice = new Voice({ num_beats: length, beat_value: 8 }).addTickables(notes);
-  return { voice, ties, beams: beamsOf(notes) };
+  return { voice, ties, beams };
 }
 
-// 同一拍裡相鄰的八分音符用符槓連起來（4/4 一般以拍為單位分組）；落單的八分音符保留符尾。
-function beamsOf(notes) {
-  const beams = [];
+// 要連符槓的音符（在 notes 裡的位置）：同一拍裡相鄰的八分音符一組（4/4 一般以拍為單位分組）；
+// 落單的八分音符保留符尾。
+function beamGroups(notes) {
+  const groups = [];
   let group = [];
   const flush = () => {
-    if (group.length > 1) beams.push(new Beam(group));
+    if (group.length > 1) groups.push(group);
     group = [];
   };
-  for (const note of notes) {
+  notes.forEach((note, i) => {
     const beat = Math.floor(note.start / EIGHTHS_PER_BEAT);
     const eighth = note.pitches && note.getDuration() === '8';
-    if (!eighth || (group.length > 0 && Math.floor(group[0].start / EIGHTHS_PER_BEAT) !== beat)) flush();
-    if (eighth) group.push(note);
-  }
+    if (!eighth || (group.length > 0 && Math.floor(notes[group[0]].start / EIGHTHS_PER_BEAT) !== beat)) flush();
+    if (eighth) group.push(i);
+  });
   flush();
-  return beams;
+  return groups;
 }
 
 // scroller：可水平捲動的整份樂譜；header：固定在左側、蓋在樂譜上面的譜號與拍號。

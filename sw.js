@@ -4,7 +4,7 @@
 // 不在背景零星更新，避免新舊檔案混雜（例如新的 index.html 配舊的 app.js）。
 // 發佈新版時執行 `npm run release`：VERSION 加一（同步 version.js，畫面左上角會顯示）並重算 HASHES。
 // sw.js 內容一變，瀏覽器就會安裝新版；新版下載完所有檔案、核對過指紋才接手並清掉舊快取。
-const VERSION = 19;
+const VERSION = 20;
 const CACHE = `piano-v${VERSION}`;
 
 // 程式與頁面檔案的 SHA-256 指紋（前 16 碼），由 `npm run release` 產生，npm test 會檢查是否最新。
@@ -15,10 +15,10 @@ const HASHES = {
   'index.html': '03169f4e2b5c0399',
   'styles.css': '51dffabc728cb46d',
   'app.js': '8913909a73198b87',
-  'version.js': '5301a06e8091984c',
+  'version.js': '366e96fd30f7448c',
   'music.js': '996c1d0011673ed4',
   'score.js': '3cf5871882284905',
-  'staff.js': 'e4b4a7f5efe40bea',
+  'staff.js': '9c854dec3711238f',
   'keyboard.js': 'b870788ebdfe1e32',
   'delete-gesture.js': '57443a43b0137fcd',
   'sound.js': '369bf981761a1ca0',

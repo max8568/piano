@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createScore, press, measures, isComplete, accidentalMarks } from './score.js';
+import { createScore, press, measures, isComplete, accidentalMarks, removeNote } from './score.js';
 
 const p = (name) => {
   const [, letter, accidental, octave] = name.match(/^([a-g])([#b]?)(\d)$/);
@@ -67,4 +67,37 @@ test('同一拍裡重複的琴鍵只算一次', () => {
   press(score, p('gb4'), 10);
   press(score, p('f#4'), 20);
   assert.deepEqual(score.beats, [[p('f#4')]]);
+});
+
+test('刪掉和弦裡的一個音，其他音留著', () => {
+  const score = createScore();
+  press(score, p('c4'), 0);
+  press(score, p('e4'), 10);
+  press(score, p('g4'), 1000);
+  removeNote(score, 0, p('e4'));
+  assert.deepEqual(score.beats, [[p('c4')], [p('g4')]]);
+});
+
+test('刪掉單音那拍就整拍移除，後面的拍往前補', () => {
+  const score = createScore();
+  for (const [i, name] of ['c4', 'd4', 'e4'].entries()) press(score, p(name), i * 1000);
+  removeNote(score, 1, p('d4'));
+  assert.deepEqual(score.beats, [[p('c4')], [p('e4')]]);
+});
+
+test('刪除後馬上按鍵也是新的一拍', () => {
+  const score = createScore();
+  press(score, p('c4'), 1000);
+  press(score, p('e4'), 1010);
+  removeNote(score, 0, p('e4'));
+  press(score, p('g4'), 1020);
+  assert.deepEqual(score.beats, [[p('c4')], [p('g4')]]);
+});
+
+test('找不到的音不動', () => {
+  const score = createScore();
+  press(score, p('c4'), 0);
+  removeNote(score, 0, p('d4'));
+  removeNote(score, 5, p('c4'));
+  assert.deepEqual(score.beats, [[p('c4')]]);
 });

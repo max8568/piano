@@ -22,6 +22,18 @@ export function press(score, pitch, time) {
   score.lastBeatAt = time;
 }
 
+// 刪掉第 beatIndex 拍裡的 pitch（同一個琴鍵）；那拍刪空了就整拍移除，後面的拍往前補。
+// 刪除後下一個按鍵一定開始新的一拍，不會併進被改過的拍。
+export function removeNote(score, beatIndex, pitch) {
+  const beat = score.beats[beatIndex];
+  if (!beat) return;
+  const i = beat.findIndex((p) => midi(p) === midi(pitch));
+  if (i === -1) return;
+  beat.splice(i, 1);
+  if (beat.length === 0) score.beats.splice(beatIndex, 1);
+  score.lastBeatAt = -Infinity;
+}
+
 // 依 4/4 把拍分成小節；最後一個小節可能未滿。
 export function measures(beats) {
   const result = [];

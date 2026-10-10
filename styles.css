@@ -77,6 +77,25 @@ body {
   pointer-events: none;
 }
 
+.delete-marker {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  border: 3px solid #e0393e;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.delete-marker[hidden] {
+  display: none;
+}
+
+/* 上滑到刪除距離：放開就會刪掉 */
+.delete-marker.deleting {
+  background: rgba(224, 57, 62, 0.35);
+}
+
 .staff-header::after {
   content: "";
   position: absolute;

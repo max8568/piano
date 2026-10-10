@@ -1,6 +1,7 @@
 import { createStaff } from './staff.js';
 import { createKeyboard } from './keyboard.js';
-import { createScore, press } from './score.js';
+import { createScore, press, removeNote } from './score.js';
+import { attachDeleteGesture } from './delete-gesture.js';
 import { createPiano } from './sound.js';
 import { VERSION } from './version.js';
 
@@ -54,6 +55,17 @@ function render() {
   const latestRight = staff.render(score.beats, center);
   scroller.scrollLeft = latestRight === null ? 0 : latestRight - center;
 }
+
+// 長按音符再上滑就刪掉它。刪除後停在原本看的位置，不跳回最新音符。
+attachDeleteGesture(scroller, document.getElementById('delete-marker'), {
+  noteAt: staff.noteAt,
+  onDelete({ beatIndex, pitch }) {
+    removeNote(score, beatIndex, pitch);
+    const { scrollLeft } = scroller;
+    staff.render(score.beats, scroller.clientWidth / 2);
+    scroller.scrollLeft = scrollLeft;
+  },
+});
 
 createKeyboard(document.getElementById('keyboard'), {
   blackMode: () => blackMode,

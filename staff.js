@@ -56,6 +56,7 @@ function beatNote(beat, marks, staff) {
   entries.forEach(({ mark }, i) => {
     if (mark) note.addModifier(new Accidental(mark), i);
   });
+  note.pitches = entries.map(({ pitch }) => pitch); // 與 keys 同順序，畫完後用來記錄符頭位置
   return note;
 }
 
@@ -67,6 +68,8 @@ function voiceOf(tickables) {
 export function createStaff(scroller, header) {
   const renderer = new Renderer(scroller, Renderer.Backends.SVG);
   const headerRenderer = new Renderer(header, Renderer.Backends.SVG);
+  // 上次畫出的每個符頭：{ beatIndex, pitch, x, y }，x、y 為符頭中心（畫面 px，相對於樂譜左上角）。
+  let heads = [];
 
   // rightReserve：畫面右側要留空的寬度（px），確保最新音符能捲到它的左邊。
   // 回傳最新一拍音符右緣的位置（畫面 px，相對於樂譜左端），沒有音符時為 null。
@@ -85,6 +88,7 @@ export function createStaff(scroller, header) {
 
     let x = STAVE_X;
     let latestX = null;
+    heads = [];
     for (let i = 0; i < measureCount; i++) {
       const measure = ms[i] ?? [];
       const first = i === 0;
@@ -113,6 +117,22 @@ export function createStaff(scroller, header) {
         trebleVoice.draw(ctx, treble);
         bassVoice.draw(ctx, bass);
         latestX = trebleVoice.getTickables().at(-1).getAbsoluteX();
+        for (const voice of [trebleVoice, bassVoice]) {
+          voice.getTickables().forEach((note, b) => {
+            if (!note.pitches) return;
+            const ys = note.getYs();
+            note.pitches.forEach((pitch, k) => {
+              // 和弦裡相鄰二度的符頭會往旁邊錯開，所以 x 取各個符頭自己的位置。
+              const headX = note.noteHeads?.[k]?.getAbsoluteX() ?? note.getAbsoluteX();
+              heads.push({
+                beatIndex: i * BEATS_PER_MEASURE + b,
+                pitch,
+                x: (headX + NOTE_HEAD_WIDTH / 2) * scale,
+                y: ys[k] * scale,
+              });
+            });
+          });
+        }
       }
 
       const barX = x + (first ? head : 0) + MEASURE_WIDTH;
@@ -122,7 +142,21 @@ export function createStaff(scroller, header) {
     return latestX === null ? null : (latestX + NOTE_HEAD_WIDTH) * scale;
   }
 
-  return { render };
+  // 離 (x, y)（相對於樂譜左上角的 px）最近、且在 radius 內的符頭；沒有則回傳 null。
+  function noteAt(x, y, radius) {
+    let best = null;
+    let bestDistance = radius;
+    for (const head of heads) {
+      const distance = Math.hypot(head.x - x, head.y - y);
+      if (distance <= bestDistance) {
+        best = head;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
+  return { render, noteAt };
 }
 
 // 貫穿高音譜頂線到低音譜底線的小節線。

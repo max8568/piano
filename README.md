@@ -13,6 +13,13 @@ npm run serve   # http://localhost:8000
 npm test        # 單元測試（Node 內建 test runner）
 ```
 
+## 安裝到 iPad（PWA）
+
+用 Safari 開啟網址 → 分享 →「加入主畫面」。開過一次之後就能離線使用（含聲音）。
+
+更新：`sw.js` 會先用快取開啟、背景下載新版，所以推上新版後「下次開啟」就是新版。
+新增檔案時要加進 `sw.js` 的 `PRECACHE`（`npm test` 會檢查有沒有漏）；需要強制清掉舊快取時把 `VERSION` 加一。
+
 ## 第三方資源
 
 - [VexFlow](https://github.com/0xfe/vexflow) 4.2.5（MIT）— 樂譜繪製，`vendor/vexflow.js`

@@ -44,3 +44,8 @@ createKeyboard(document.getElementById('keyboard'), {
 
 window.addEventListener('resize', render);
 render();
+
+// 離線使用：註冊 Service Worker（只在 http(s) 下可用）。
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}

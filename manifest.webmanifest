@@ -1,0 +1,17 @@
+{
+  "name": "鋼琴五線譜",
+  "short_name": "鋼琴譜",
+  "description": "按琴鍵，在大譜表上寫出四分音符",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#fdfcf8",
+  "theme_color": "#fdfcf8",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

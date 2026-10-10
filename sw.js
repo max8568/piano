@@ -3,7 +3,7 @@
 // 更新策略：頁面與程式先用快取回應（開啟快、離線可用），同時在背景抓新版存進快取，
 // 所以推上新版後，下次開啟 App 就會是新版。取樣音檔不會變，只用快取。
 // 每次發佈新版都把 VERSION 加一（並同步 version.js，畫面左上角會顯示），新版會立刻接手並清掉舊快取。
-const VERSION = 13;
+const VERSION = 14;
 const CACHE = `piano-v${VERSION}`;
 
 const SAMPLES = ['C', 'Ds', 'Fs', 'A']
@@ -32,11 +32,14 @@ const PRECACHE = [
   ...SAMPLES,
 ];
 
+// GitHub Pages 對每個檔案都回 max-age=600，Service Worker 的下載預設會用瀏覽器的 HTTP 快取，
+// 剛推新版的 10 分鐘內可能抓到新舊混雜的檔案（例如新的 index.html 配舊的 app.js）。
+// 所以一律用 cache: 'no-cache' 向伺服器確認（沒變只回 304，不會重新下載）。
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE))
+      .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'no-cache' }))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -59,7 +62,8 @@ self.addEventListener('fetch', (event) => {
       const cached = await cache.match(request, { ignoreSearch: true });
       if (cached && request.url.endsWith('.mp3')) return cached;
 
-      const refresh = fetch(request)
+      // 用網址而不是 request 本身：頁面導覽的 request 不能再加 cache 選項。
+      const refresh = fetch(request.url, { cache: 'no-cache' })
         .then((response) => {
           if (response.ok) cache.put(request, response.clone());
           return response;

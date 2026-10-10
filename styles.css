@@ -6,6 +6,9 @@
   --key-border: #333;
   --middle-c: #ffc0d9;
   --middle-c-pressed: #f79abf;
+  --black-key: #1c1c1c;
+  --black-key-pressed: #555;
+  --white-count: 29;
 }
 
 * {
@@ -85,6 +88,7 @@ body {
 }
 
 .keyboard {
+  position: relative;
   flex: 4 1 0;
   min-height: 0;
   display: flex;
@@ -113,6 +117,23 @@ body {
   background: var(--middle-c-pressed);
 }
 
+.key.black {
+  --width: calc(100% / var(--white-count) * 0.6);
+  position: absolute;
+  top: 0;
+  left: calc(100% * var(--boundary) - var(--width) / 2);
+  width: var(--width);
+  height: 62%;
+  z-index: 1;
+  background: var(--black-key);
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
+}
+
+.key.black.pressed {
+  background: var(--black-key-pressed);
+}
+
 .label {
   position: absolute;
   bottom: 8px;
@@ -122,6 +143,39 @@ body {
   font-size: 12px;
   color: #555;
   pointer-events: none;
+}
+
+.accidental-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.accidental-toggle button {
+  min-width: 72px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 20px;
+  touch-action: manipulation;
+}
+
+.accidental-toggle button + button {
+  border-left: 2px solid var(--ink);
+}
+
+.accidental-toggle button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--bg);
 }
 
 .rotate-hint {

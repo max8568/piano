@@ -1,8 +1,8 @@
 // 用 VexFlow 畫大譜表與音符。VexFlow 由 index.html 以一般 script 載入（全域 Vex）。
-import { staffFor, vexKey } from './music.js';
-import { measures, isComplete, BEATS_PER_MEASURE } from './score.js';
+import { staffFor, staffPosition, vexKey } from './music.js';
+import { measures, isComplete, accidentalMarks, BEATS_PER_MEASURE } from './score.js';
 
-const { Renderer, Stave, StaveNote, GhostNote, Voice, Formatter, StaveConnector, Barline } = Vex.Flow;
+const { Renderer, Stave, StaveNote, GhostNote, Voice, Formatter, StaveConnector, Barline, Accidental } = Vex.Flow;
 
 // 以下為 VexFlow 的「虛擬座標」，實際畫面再依高度等比例縮放。
 const VIRTUAL_HEIGHT = 260; // 足夠容納 C6（上加兩線）到 C2（下加兩線）
@@ -13,7 +13,7 @@ const NOTE_SPACING = 44; // 每一拍佔的寬度
 const MEASURE_PADDING = 24; // 小節線前後的留白
 const MEASURE_WIDTH = BEATS_PER_MEASURE * NOTE_SPACING + MEASURE_PADDING;
 const END_PADDING = 30;
-const LATEST_MARGIN = 2 * NOTE_SPACING; // 最新音符右邊保留的空間
+const NOTE_HEAD_WIDTH = 16;
 
 // 譜號＋拍號佔的寬度（第一小節的音符起點）。
 function headerWidth() {
@@ -40,10 +40,23 @@ function prepare(renderer, virtualWidth, scale) {
 }
 
 // 一拍在某一行（高音或低音譜）的音符；這行沒有音就用 GhostNote 佔位，讓上下對齊。
-function beatNote(beat, staff) {
-  const pitches = beat.filter((p) => staffFor(p) === staff);
-  if (pitches.length === 0) return new GhostNote({ duration: 'q' });
-  return new StaveNote({ clef: staff, keys: pitches.map(vexKey), duration: 'q', auto_stem: true });
+// marks：與 beat 對應的升降／還原記號（見 accidentalMarks）。
+function beatNote(beat, marks, staff) {
+  const entries = beat
+    .map((pitch, i) => ({ pitch, mark: marks[i] }))
+    .filter(({ pitch }) => staffFor(pitch) === staff)
+    .sort((a, b) => staffPosition(a.pitch) - staffPosition(b.pitch));
+  if (entries.length === 0) return new GhostNote({ duration: 'q' });
+  const note = new StaveNote({
+    clef: staff,
+    keys: entries.map(({ pitch }) => vexKey(pitch)),
+    duration: 'q',
+    auto_stem: true,
+  });
+  entries.forEach(({ mark }, i) => {
+    if (mark) note.addModifier(new Accidental(mark), i);
+  });
+  return note;
 }
 
 function voiceOf(tickables) {
@@ -55,15 +68,16 @@ export function createStaff(scroller, header) {
   const renderer = new Renderer(scroller, Renderer.Backends.SVG);
   const headerRenderer = new Renderer(header, Renderer.Backends.SVG);
 
-  // 回傳最新一拍的位置（畫面 px，相對於樂譜左端），沒有音符時為 null。
-  function render(beats) {
+  // rightReserve：畫面右側要留空的寬度（px），確保最新音符能捲到它的左邊。
+  // 回傳最新一拍音符右緣的位置（畫面 px，相對於樂譜左端），沒有音符時為 null。
+  function render(beats, rightReserve = 0) {
     const scale = scroller.clientHeight / VIRTUAL_HEIGHT;
     const viewWidth = scroller.clientWidth / scale;
     const head = headerWidth();
 
     const ms = measures(beats);
     const measureCount = Math.max(ms.length, 1);
-    const contentWidth = head + measureCount * MEASURE_WIDTH + END_PADDING;
+    const contentWidth = head + measureCount * MEASURE_WIDTH + Math.max(END_PADDING, rightReserve / scale);
     const totalWidth = Math.max(viewWidth - STAVE_X * 2, contentWidth);
     const ctx = prepare(renderer, totalWidth + STAVE_X * 2, scale);
 
@@ -89,8 +103,9 @@ export function createStaff(scroller, header) {
       }
 
       if (measure.length > 0) {
-        const trebleVoice = voiceOf(measure.map((beat) => beatNote(beat, 'treble')));
-        const bassVoice = voiceOf(measure.map((beat) => beatNote(beat, 'bass')));
+        const marks = accidentalMarks(measure);
+        const trebleVoice = voiceOf(measure.map((beat, b) => beatNote(beat, marks[b], 'treble')));
+        const bassVoice = voiceOf(measure.map((beat, b) => beatNote(beat, marks[b], 'bass')));
         new Formatter()
           .joinVoices([trebleVoice])
           .joinVoices([bassVoice])
@@ -104,7 +119,7 @@ export function createStaff(scroller, header) {
       if (isComplete(measure)) drawBarline(ctx, barX);
       x = barX;
     }
-    return latestX === null ? null : (latestX + LATEST_MARGIN) * scale;
+    return latestX === null ? null : (latestX + NOTE_HEAD_WIDTH) * scale;
   }
 
   return { render };

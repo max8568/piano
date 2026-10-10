@@ -48,10 +48,25 @@ for (const button of toggleButtons) {
   });
 }
 
-// 清除所有音符；無法復原，所以先確認。
+// 清除所有音符；無法復原，所以要按兩下：第一下變成「確定清除？」，3 秒內再按一下才清除。
+// 不用 confirm()：iOS 跳出系統對話框會打斷音訊，關掉後又要「點一下開始」。
+const CLEAR_CONFIRM_MS = 3000;
 const clearButton = document.getElementById('clear');
+let clearArmed = null; // 等待第二下時的計時器
+function disarmClear() {
+  clearTimeout(clearArmed);
+  clearArmed = null;
+  clearButton.classList.remove('armed');
+  clearButton.textContent = '清除';
+}
 clearButton.addEventListener('click', () => {
-  if (!confirm('清除所有音符？')) return;
+  if (!clearArmed) {
+    clearButton.classList.add('armed');
+    clearButton.textContent = '確定清除？';
+    clearArmed = setTimeout(disarmClear, CLEAR_CONFIRM_MS);
+    return;
+  }
+  disarmClear();
   clearScore(score);
   render();
 });

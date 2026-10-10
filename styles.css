@@ -189,6 +189,12 @@ body {
   touch-action: manipulation;
 }
 
+.clear-button.armed {
+  border-color: #e0393e;
+  background: #e0393e;
+  color: #fff;
+}
+
 .clear-button:disabled {
   opacity: 0.3;
 }

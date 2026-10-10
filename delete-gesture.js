@@ -8,7 +8,8 @@ const HIT_RADIUS = 28; // 手指離符頭中心多遠以內算按到（px）
 
 // scroller：樂譜捲動區；marker：選中時圈住音符的元素（與 scroller 同一個定位容器）。
 // noteAt(x, y, radius)：找出樂譜座標上的符頭（見 staff.js）；onDelete(head)：刪除該音符。
-export function attachDeleteGesture(scroller, marker, { noteAt, onDelete }) {
+// log(message)：除錯用，記錄手勢的每一步（?debug 時顯示）。
+export function attachDeleteGesture(scroller, marker, { noteAt, onDelete, log = () => {} }) {
   let gesture = null; // { id, startX, startY, head, timer, selected }
 
   function hideMarker() {
@@ -28,13 +29,22 @@ export function attachDeleteGesture(scroller, marker, { noteAt, onDelete }) {
   }
 
   scroller.addEventListener('touchstart', (event) => {
-    if (gesture || event.touches.length !== 1) return end();
+    if (gesture || event.touches.length !== 1) {
+      log(`start 多指 ${event.touches.length}，取消`);
+      return end();
+    }
     const touch = event.changedTouches[0];
     const rect = scroller.getBoundingClientRect();
-    const head = noteAt(touch.clientX - rect.left + scroller.scrollLeft, touch.clientY - rect.top, HIT_RADIUS);
+    const x = touch.clientX - rect.left + scroller.scrollLeft;
+    const y = touch.clientY - rect.top;
+    const nearest = noteAt(x, y, Infinity);
+    const distance = nearest ? Math.round(Math.hypot(nearest.x - x, nearest.y - y)) : null;
+    log(`start (${Math.round(x)},${Math.round(y)}) 最近符頭 ${nearest ? `(${Math.round(nearest.x)},${Math.round(nearest.y)}) 距離 ${distance}` : '無'}`);
+    const head = distance !== null && distance <= HIT_RADIUS ? nearest : null;
     if (!head) return;
     gesture = { id: touch.identifier, startX: touch.clientX, startY: touch.clientY, head, selected: false };
     gesture.timer = setTimeout(() => {
+      log('選中');
       gesture.selected = true;
       marker.style.left = `${head.x - scroller.scrollLeft}px`;
       marker.style.top = `${head.y}px`;
@@ -49,7 +59,10 @@ export function attachDeleteGesture(scroller, marker, { noteAt, onDelete }) {
     const dx = touch.clientX - gesture.startX;
     const dy = touch.clientY - gesture.startY;
     if (!gesture.selected) {
-      if (Math.hypot(dx, dy) > MOVE_TOLERANCE) end();
+      if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
+        log(`選中前移動 ${Math.round(Math.hypot(dx, dy))}px，取消`);
+        end();
+      }
       return;
     }
     event.preventDefault();
@@ -61,6 +74,7 @@ export function attachDeleteGesture(scroller, marker, { noteAt, onDelete }) {
   scroller.addEventListener('touchend', (event) => {
     const touch = touchOf(event);
     if (!touch) return;
+    log(`end 選中=${gesture.selected} 上滑 ${Math.round(gesture.startY - touch.clientY)}px`);
     if (gesture.selected && gesture.startY - touch.clientY >= SWIPE_UP) onDelete(gesture.head);
     hideMarker();
     end();
@@ -68,6 +82,7 @@ export function attachDeleteGesture(scroller, marker, { noteAt, onDelete }) {
 
   scroller.addEventListener('touchcancel', (event) => {
     if (!touchOf(event)) return;
+    log(`cancel 選中=${gesture.selected}`);
     hideMarker();
     end();
   });

@@ -14,12 +14,20 @@ document.getElementById('version').textContent = `v${VERSION}`;
 const audioGate = document.getElementById('audio-gate');
 const audioChip = document.getElementById('audio-chip');
 const debugPanel = new URLSearchParams(location.search).has('debug') ? document.getElementById('debug') : null;
-function showAudioStatus({ context, loaded, error }) {
+let audioStatus = {};
+const gestureLog = []; // ?debug 時顯示最近幾筆刪除手勢的紀錄
+function showAudioStatus(status) {
+  audioStatus = status;
+  const { context, loaded, error } = status;
   if (loaded || error) registerServiceWorker();
   audioGate.hidden = context === 'running';
   audioChip.hidden = loaded && !error;
   audioChip.textContent = error ?? '音色載入中…';
+  showDebug();
+}
+function showDebug() {
   if (debugPanel) {
+    const { context, loaded, error } = audioStatus;
     debugPanel.hidden = false;
     debugPanel.textContent = JSON.stringify({
       context,
@@ -29,7 +37,7 @@ function showAudioStatus({ context, loaded, error }) {
       standalone: navigator.standalone ?? matchMedia('(display-mode: standalone)').matches,
       sw: navigator.serviceWorker?.controller ? '有' : '無',
       ua: navigator.userAgent,
-    }, null, 1);
+    }, null, 1) + '\n' + gestureLog.join('\n');
   }
 }
 const piano = createPiano({ onStatus: showAudioStatus });
@@ -56,9 +64,24 @@ function render() {
   scroller.scrollLeft = latestRight === null ? 0 : latestRight - center;
 }
 
+function debugLog(message) {
+  if (!debugPanel) return;
+  gestureLog.push(`${(performance.now() / 1000).toFixed(2)} ${message}`);
+  if (gestureLog.length > 8) gestureLog.shift();
+  showDebug();
+}
+if (debugPanel) {
+  window.addEventListener('error', (event) => debugLog(`錯誤 ${event.message}`));
+  document.addEventListener('touchstart', (event) => {
+    const target = event.target;
+    debugLog(`觸控目標 ${target.tagName}.${target.getAttribute('class') ?? ''}`);
+  }, { capture: true });
+}
+
 // 長按音符再上滑就刪掉它。刪除後停在原本看的位置，不跳回最新音符。
 attachDeleteGesture(scroller, document.getElementById('delete-marker'), {
   noteAt: staff.noteAt,
+  log: debugLog,
   onDelete({ beatIndex, pitch }) {
     removeNote(score, beatIndex, pitch);
     const { scrollLeft } = scroller;

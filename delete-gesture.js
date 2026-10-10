@@ -11,8 +11,7 @@ const HIT_RADIUS = 28; // 手指離符頭中心多遠以內算按到（px）
 
 // scroller：樂譜捲動區；marker：選中時圈住音符的元素（與 scroller 同一個定位容器）。
 // noteAt(x, y, radius)：找出樂譜座標上的符頭（見 staff.js）；onDelete(head)：刪除該音符。
-// log(message)：除錯用，記錄手勢的每一步（?debug 時顯示）。
-export function attachDeleteGesture(scroller, marker, { noteAt, onDelete, log = () => {} }) {
+export function attachDeleteGesture(scroller, marker, { noteAt, onDelete }) {
   let gesture = null; // { id, startX, startY, head, timer, selected }
 
   function end() {
@@ -28,21 +27,14 @@ export function attachDeleteGesture(scroller, marker, { noteAt, onDelete, log = 
   const ours = (event) => gesture && event.pointerId === gesture.id;
 
   scroller.addEventListener('pointerdown', (event) => {
-    if (gesture) {
-      log('第二根手指，取消');
-      return end();
-    }
+    if (gesture) return end(); // 第二根手指：取消
     const rect = scroller.getBoundingClientRect();
     const x = event.clientX - rect.left + scroller.scrollLeft;
     const y = event.clientY - rect.top;
-    const nearest = noteAt(x, y, Infinity);
-    const distance = nearest ? Math.round(Math.hypot(nearest.x - x, nearest.y - y)) : null;
-    log(`start (${Math.round(x)},${Math.round(y)}) 最近符頭 ${nearest ? `(${Math.round(nearest.x)},${Math.round(nearest.y)}) 距離 ${distance}` : '無'}`);
-    if (distance === null || distance > HIT_RADIUS) return;
-    const head = nearest;
+    const head = noteAt(x, y, HIT_RADIUS);
+    if (!head) return;
     gesture = { id: event.pointerId, startX: event.clientX, startY: event.clientY, head, selected: false };
     gesture.timer = setTimeout(() => {
-      log('選中');
       gesture.selected = true;
       // 選中後鎖住捲動，手指往上滑時稍微偏左右也不會把譜捲走。
       scroller.classList.add('locked');
@@ -57,10 +49,7 @@ export function attachDeleteGesture(scroller, marker, { noteAt, onDelete, log = 
     const dx = event.clientX - gesture.startX;
     const dy = event.clientY - gesture.startY;
     if (!gesture.selected) {
-      if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
-        log(`選中前移動 ${Math.round(Math.hypot(dx, dy))}px，取消`);
-        end();
-      }
+      if (Math.hypot(dx, dy) > MOVE_TOLERANCE) end();
       return;
     }
     const up = Math.max(0, -dy);
@@ -76,14 +65,12 @@ export function attachDeleteGesture(scroller, marker, { noteAt, onDelete, log = 
   scroller.addEventListener('pointerup', (event) => {
     if (!ours(event)) return;
     const up = gesture.startY - event.clientY;
-    log(`end 選中=${gesture.selected} 上滑 ${Math.round(up)}px`);
     if (gesture.selected && up >= SWIPE_UP) onDelete(gesture.head);
     end();
   });
 
   scroller.addEventListener('pointercancel', (event) => {
     if (!ours(event)) return;
-    log(`cancel 選中=${gesture.selected}`);
     end();
   });
 }

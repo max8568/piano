@@ -3,7 +3,10 @@ import { whiteKeys, blackKeys, spell, pitchName, isMiddleC, midi } from './music
 
 // blackMode()：目前黑鍵要記成 'sharp' 還是 'flat'。
 // onPress(pitch)／onRelease(pitch)：手指按下／放開某個鍵。
-// 回傳 { mark(pitch, className), clearMarks() }：把某個音的琴鍵加上顏色（測驗模式標出正確／按錯的鍵）。
+// 回傳：
+//   mark(pitch, className)／clearMarks(className)：把某個音的琴鍵加上／拿掉 class（測驗模式標出範圍、按錯的鍵）；
+//     clearMarks() 不給 className 時全部拿掉。
+//   pitchAt(x, y)：畫面座標 (x, y) 底下那個琴鍵的音高，不在琴鍵上時為 null（拖曳選範圍用）。
 export function createKeyboard(container, { blackMode, onPress, onRelease = () => {} }) {
   const whites = whiteKeys();
   const blacks = blackKeys();
@@ -56,18 +59,25 @@ export function createKeyboard(container, { blackMode, onPress, onRelease = () =
     container.addEventListener(type, (event) => release(event.pointerId));
   }
 
-  const marked = new Map(); // 琴鍵元素 → 加上的 class
+  const marked = new Set(); // 加過 class 的 [琴鍵元素, class]
   return {
     mark(pitch, className) {
       for (const [key, pitchOfKey] of pitchOf) {
         if (midi(pitchOfKey()) !== midi(pitch)) continue;
         key.classList.add(className);
-        marked.set(key, className);
+        marked.add([key, className]);
       }
     },
-    clearMarks() {
-      for (const [key, className] of marked) key.classList.remove(className);
-      marked.clear();
+    clearMarks(className = null) {
+      for (const entry of marked) {
+        if (className && entry[1] !== className) continue;
+        entry[0].classList.remove(entry[1]);
+        marked.delete(entry);
+      }
+    },
+    pitchAt(x, y) {
+      const key = document.elementFromPoint(x, y)?.closest('.key');
+      return key && pitchOf.has(key) ? pitchOf.get(key)() : null;
     },
   };
 }

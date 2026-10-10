@@ -3,12 +3,13 @@ import { createKeyboard } from './keyboard.js';
 import { createScore, addBeat } from './score.js';
 
 const score = createScore();
-const staffArea = document.getElementById('staff');
-const staff = createStaff(staffArea);
+const scroller = document.getElementById('staff-scroll');
+const staff = createStaff(scroller, document.getElementById('staff-header'));
 
+// 重畫並捲到「最新音符貼在右側」。使用者滑回去看舊音符時，一按新鍵也會跳回這裡。
 function render() {
-  staff.render(score.beats);
-  staffArea.scrollLeft = staffArea.scrollWidth;
+  const latestRight = staff.render(score.beats);
+  scroller.scrollLeft = latestRight === null ? 0 : latestRight - scroller.clientWidth;
 }
 
 createKeyboard(document.getElementById('keyboard'), {

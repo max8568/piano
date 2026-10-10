@@ -13,6 +13,31 @@ const NOTE_SPACING = 44; // 每一拍佔的寬度
 const MEASURE_PADDING = 24; // 小節線前後的留白
 const MEASURE_WIDTH = BEATS_PER_MEASURE * NOTE_SPACING + MEASURE_PADDING;
 const END_PADDING = 30;
+const LATEST_MARGIN = 2 * NOTE_SPACING; // 最新音符右邊保留的空間
+
+// 譜號＋拍號佔的寬度（第一小節的音符起點）。
+function headerWidth() {
+  const probe = new Stave(STAVE_X, TREBLE_Y, 100).addClef('treble').addTimeSignature('4/4');
+  return probe.getNoteStartX() - STAVE_X;
+}
+
+// 畫大譜表開頭：大括號、左邊直線、譜號、拍號。
+function drawHeader(ctx, width) {
+  const treble = new Stave(STAVE_X, TREBLE_Y, width).addClef('treble').addTimeSignature('4/4');
+  const bass = new Stave(STAVE_X, BASS_Y, width).addClef('bass').addTimeSignature('4/4');
+  for (const stave of [treble, bass]) stave.setEndBarType(Barline.type.NONE).setContext(ctx).draw();
+  new StaveConnector(treble, bass).setType('brace').setContext(ctx).draw();
+  new StaveConnector(treble, bass).setType('singleLeft').setContext(ctx).draw();
+}
+
+function prepare(renderer, virtualWidth, scale) {
+  renderer.resize(virtualWidth * scale, VIRTUAL_HEIGHT * scale);
+  const ctx = renderer.getContext();
+  ctx.clear();
+  // 不用 ctx.scale()：它會在每次重畫時累乘。直接設定 viewBox 達到等比例縮放。
+  ctx.setViewBox(0, 0, virtualWidth, VIRTUAL_HEIGHT);
+  return ctx;
+}
 
 // 一拍在某一行（高音或低音譜）的音符；這行沒有音就用 GhostNote 佔位，讓上下對齊。
 function beatNote(beat, staff) {
@@ -25,36 +50,33 @@ function voiceOf(tickables) {
   return new Voice({ num_beats: tickables.length, beat_value: 4 }).addTickables(tickables);
 }
 
-export function createStaff(container) {
-  const renderer = new Renderer(container, Renderer.Backends.SVG);
+// scroller：可水平捲動的整份樂譜；header：固定在左側、蓋在樂譜上面的譜號與拍號。
+export function createStaff(scroller, header) {
+  const renderer = new Renderer(scroller, Renderer.Backends.SVG);
+  const headerRenderer = new Renderer(header, Renderer.Backends.SVG);
 
+  // 回傳最新一拍的位置（畫面 px，相對於樂譜左端），沒有音符時為 null。
   function render(beats) {
-    const scale = container.clientHeight / VIRTUAL_HEIGHT;
-    const viewWidth = container.clientWidth / scale;
-
-    // 第一小節前面多了譜號＋拍號，先用暫時的 stave 算出寬度。
-    const probe = new Stave(STAVE_X, TREBLE_Y, 100).addClef('treble').addTimeSignature('4/4');
-    const headerWidth = probe.getNoteStartX() - STAVE_X;
+    const scale = scroller.clientHeight / VIRTUAL_HEIGHT;
+    const viewWidth = scroller.clientWidth / scale;
+    const head = headerWidth();
 
     const ms = measures(beats);
     const measureCount = Math.max(ms.length, 1);
-    const contentWidth = headerWidth + measureCount * MEASURE_WIDTH + END_PADDING;
+    const contentWidth = head + measureCount * MEASURE_WIDTH + END_PADDING;
     const totalWidth = Math.max(viewWidth - STAVE_X * 2, contentWidth);
+    const ctx = prepare(renderer, totalWidth + STAVE_X * 2, scale);
 
-    const virtualWidth = totalWidth + STAVE_X * 2;
-    renderer.resize(virtualWidth * scale, VIRTUAL_HEIGHT * scale);
-    const ctx = renderer.getContext();
-    ctx.clear();
-    // 不用 ctx.scale()：它會在每次重畫時累乘。直接設定 viewBox 達到等比例縮放。
-    ctx.setViewBox(0, 0, virtualWidth, VIRTUAL_HEIGHT);
+    drawHeader(prepare(headerRenderer, STAVE_X + head, scale), head);
 
     let x = STAVE_X;
+    let latestX = null;
     for (let i = 0; i < measureCount; i++) {
       const measure = ms[i] ?? [];
       const first = i === 0;
       const last = i === measureCount - 1;
       // 最後一個小節的五線延伸到畫面右邊。
-      const width = last ? STAVE_X + totalWidth - x : (first ? headerWidth : 0) + MEASURE_WIDTH;
+      const width = last ? STAVE_X + totalWidth - x : (first ? head : 0) + MEASURE_WIDTH;
 
       const treble = new Stave(x, TREBLE_Y, width);
       const bass = new Stave(x, BASS_Y, width);
@@ -64,10 +86,6 @@ export function createStaff(container) {
         // 小節線另外畫成貫穿上下兩行的一條線（drawBarline）。
         stave.setEndBarType(Barline.type.NONE);
         stave.setContext(ctx).draw();
-      }
-      if (first) {
-        new StaveConnector(treble, bass).setType('brace').setContext(ctx).draw();
-        new StaveConnector(treble, bass).setType('singleLeft').setContext(ctx).draw();
       }
 
       if (measure.length > 0) {
@@ -79,12 +97,14 @@ export function createStaff(container) {
           .format([trebleVoice, bassVoice], measure.length * NOTE_SPACING);
         trebleVoice.draw(ctx, treble);
         bassVoice.draw(ctx, bass);
+        latestX = trebleVoice.getTickables().at(-1).getAbsoluteX();
       }
 
-      const barX = x + (first ? headerWidth : 0) + MEASURE_WIDTH;
+      const barX = x + (first ? head : 0) + MEASURE_WIDTH;
       if (isComplete(measure)) drawBarline(ctx, barX);
       x = barX;
     }
+    return latestX === null ? null : (latestX + LATEST_MARGIN) * scale;
   }
 
   return { render };

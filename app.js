@@ -12,6 +12,7 @@ const audioGate = document.getElementById('audio-gate');
 const audioChip = document.getElementById('audio-chip');
 const debugPanel = new URLSearchParams(location.search).has('debug') ? document.getElementById('debug') : null;
 function showAudioStatus({ context, loaded, error }) {
+  if (loaded || error) registerServiceWorker();
   audioGate.hidden = context === 'running';
   audioChip.hidden = loaded && !error;
   audioChip.textContent = error ?? '音色載入中…';
@@ -70,11 +71,17 @@ window.addEventListener('resize', render);
 render();
 
 // 離線使用：註冊 Service Worker（只在 http(s) 下可用）。
+// 等鋼琴取樣載完才註冊：Service Worker 安裝時會預先下載同一批 mp3，第一次開啟時若兩邊同時下載，
+// 頁面的取樣請求可能卡住、一直載不完（在 GitHub Pages 上實測過）。取樣載完後，安裝時就能直接用瀏覽器快取。
+// 取樣一直載不完時，30 秒後仍會註冊，確保離線功能最後還是裝得上。
 // 有新版 Service Worker 接手時，如果還沒彈任何音，就重新載入直接換成新版。
-if ('serviceWorker' in navigator) {
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator) || registerServiceWorker.done) return;
+  registerServiceWorker.done = true;
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (hadController && score.beats.length === 0) location.reload();
   });
   navigator.serviceWorker.register('sw.js');
 }
+setTimeout(registerServiceWorker, 30000);

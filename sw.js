@@ -1,10 +1,32 @@
 // Service Worker：預先快取所有檔案，讓 App 可以離線使用（含鋼琴取樣）。
 //
-// 更新策略：頁面與程式先用快取回應（開啟快、離線可用），同時在背景抓新版存進快取，
-// 所以推上新版後，下次開啟 App 就會是新版。取樣音檔不會變，只用快取。
-// 每次發佈新版都把 VERSION 加一（並同步 version.js，畫面左上角會顯示），新版會立刻接手並清掉舊快取。
-const VERSION = 15;
+// 更新策略：一律用快取回應（開啟快、離線可用）。一個快取裡的檔案永遠來自同一次安裝，
+// 不在背景零星更新，避免新舊檔案混雜（例如新的 index.html 配舊的 app.js）。
+// 發佈新版時執行 `npm run release`：VERSION 加一（同步 version.js，畫面左上角會顯示）並重算 HASHES。
+// sw.js 內容一變，瀏覽器就會安裝新版；新版下載完所有檔案、核對過指紋才接手並清掉舊快取。
+const VERSION = 16;
 const CACHE = `piano-v${VERSION}`;
+
+// 程式與頁面檔案的 SHA-256 指紋（前 16 碼），由 `npm run release` 產生，npm test 會檢查是否最新。
+// 安裝時下載到的檔案若與指紋不符（例如 CDN 或瀏覽器給了舊檔），就放棄這次安裝，
+// 舊版繼續完整運作，下次開啟 App 再重試。
+// HASHES-BEGIN
+const HASHES = {
+  'index.html': '22192a728c81ea7f',
+  'styles.css': 'befa99f8172768ef',
+  'app.js': 'f731350924ae8e75',
+  'version.js': '52135db3120ce865',
+  'music.js': '996c1d0011673ed4',
+  'score.js': '2b97ec057f218d8e',
+  'staff.js': '66d121a8f4835ef6',
+  'keyboard.js': 'dd87f4be9657fbb3',
+  'delete-gesture.js': '57443a43b0137fcd',
+  'sound.js': '369bf981761a1ca0',
+  'vendor/vexflow.js': 'e99d9f8d7ebcb88f',
+  'vendor/tone.js': 'a2434ccdddd2b477',
+  'manifest.webmanifest': '1d3126ac2dcd2204',
+};
+// HASHES-END
 
 const SAMPLES = ['C', 'Ds', 'Fs', 'A']
   .flatMap((note) => [2, 3, 4, 5].map((octave) => `audio/salamander/${note}${octave}.mp3`))
@@ -33,14 +55,27 @@ const PRECACHE = [
 ];
 
 // GitHub Pages 對每個檔案都回 max-age=600，Service Worker 的下載預設會用瀏覽器的 HTTP 快取，
-// 剛推新版的 10 分鐘內可能抓到新舊混雜的檔案（例如新的 index.html 配舊的 app.js）。
-// 所以一律用 cache: 'no-cache' 向伺服器確認（沒變只回 304，不會重新下載）。
+// 剛推新版的 10 分鐘內可能抓到舊檔。所以一律用 cache: 'no-cache' 向伺服器確認（沒變只回 304，不會重新下載）。
+async function download(url) {
+  const response = await fetch(url, { cache: 'no-cache' });
+  if (!response.ok) throw new Error(`${url}: ${response.status}`);
+  const expected = HASHES[url === './' ? 'index.html' : url];
+  if (expected) {
+    const digest = await crypto.subtle.digest('SHA-256', await response.clone().arrayBuffer());
+    const actual = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+    if (actual !== expected) throw new Error(`${url} 不是這一版的檔案`);
+  }
+  return response;
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'no-cache' }))))
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const responses = await Promise.all(PRECACHE.map(download));
+      const cache = await caches.open(CACHE);
+      await Promise.all(PRECACHE.map((url, i) => cache.put(url, responses[i])));
+      await self.skipWaiting();
+    })(),
   );
 });
 
@@ -56,24 +91,5 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
-
-  event.respondWith(
-    caches.open(CACHE).then(async (cache) => {
-      const cached = await cache.match(request, { ignoreSearch: true });
-      if (cached && request.url.endsWith('.mp3')) return cached;
-
-      // 用網址而不是 request 本身：頁面導覽的 request 不能再加 cache 選項。
-      const refresh = fetch(request.url, { cache: 'no-cache' })
-        .then((response) => {
-          if (response.ok) cache.put(request, response.clone());
-          return response;
-        })
-        .catch(() => cached);
-      if (cached) {
-        event.waitUntil(refresh);
-        return cached;
-      }
-      return refresh;
-    }),
-  );
+  event.respondWith(caches.match(request, { ignoreSearch: true }).then((cached) => cached ?? fetch(request)));
 });

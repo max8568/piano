@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
+    "release": "node release.js",
     "serve": "python3 -m http.server 8000"
   }
 }

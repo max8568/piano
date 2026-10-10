@@ -1,0 +1,116 @@
+:root {
+  --bg: #fdfcf8;
+  --ink: #1a1a1a;
+  --white-key: #ffffff;
+  --white-key-pressed: #dcdcdc;
+  --key-border: #333;
+  --middle-c: #ffc0d9;
+  --middle-c-pressed: #f79abf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
+  /* 避免 iPad 上長按選字、跳出選單、雙擊縮放 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.staff {
+  flex: 6 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.staff svg {
+  display: block;
+  flex: none;
+}
+
+.keyboard {
+  flex: 4 1 0;
+  min-height: 0;
+  display: flex;
+  border-top: 3px solid var(--ink);
+}
+
+.key.white {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--white-key);
+  border: 1px solid var(--key-border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+}
+
+.key.white.pressed {
+  background: var(--white-key-pressed);
+}
+
+.key.white.middle-c {
+  background: var(--middle-c);
+}
+
+.key.white.middle-c.pressed {
+  background: var(--middle-c-pressed);
+}
+
+.label {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  color: #555;
+  pointer-events: none;
+}
+
+.rotate-hint {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  .rotate-hint {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: var(--bg);
+    font-size: 28px;
+  }
+
+  .rotate-icon {
+    font-size: 72px;
+  }
+}

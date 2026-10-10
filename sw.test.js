@@ -3,12 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
+import { VERSION } from './version.js';
 
 // 執行 sw.js 取出 PRECACHE（模擬最小的 Service Worker 環境）。
-function precacheList() {
+function runServiceWorker() {
   const sandbox = { self: { addEventListener() {}, location: { origin: '' } } };
-  vm.runInNewContext(readFileSync('sw.js', 'utf8') + '\nthis.PRECACHE = PRECACHE;', sandbox);
-  return sandbox.PRECACHE;
+  vm.runInNewContext(readFileSync('sw.js', 'utf8') + '\nthis.PRECACHE = PRECACHE; this.VERSION = VERSION;', sandbox);
+  return sandbox;
+}
+
+function precacheList() {
+  return runServiceWorker().PRECACHE;
 }
 
 // App 執行時會用到的檔案：除了測試、說明文件與開發設定以外的所有檔案。
@@ -32,4 +37,8 @@ test('預先快取清單裡的檔案都存在', () => {
     if (path === './') continue;
     assert.ok(statSync(path).isFile(), path);
   }
+});
+
+test('畫面顯示的版本號與 Service Worker 的 VERSION 一致', () => {
+  assert.equal(runServiceWorker().VERSION, VERSION);
 });

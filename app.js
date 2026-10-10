@@ -2,8 +2,10 @@ import { createStaff } from './staff.js';
 import { createKeyboard } from './keyboard.js';
 import { createScore, press } from './score.js';
 import { createPiano } from './sound.js';
+import { VERSION } from './version.js';
 
 const score = createScore();
+document.getElementById('version').textContent = `v${VERSION}`;
 
 // 音訊狀態顯示：
 // - 音訊還沒啟動（或從背景回來被暫停）時，蓋一層「點一下開始」，讓那一下成為合法的手勢來啟動音訊。

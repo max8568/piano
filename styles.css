@@ -214,6 +214,16 @@ body {
   pointer-events: none;
 }
 
+.version {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 6px);
+  left: calc(env(safe-area-inset-left) + 10px);
+  z-index: 3;
+  color: #9a9a9a;
+  font-size: 12px;
+  pointer-events: none;
+}
+
 .debug {
   position: fixed;
   left: 8px;

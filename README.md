@@ -18,7 +18,8 @@ npm test        # 單元測試（Node 內建 test runner）
 用 Safari 開啟網址 → 分享 →「加入主畫面」。開過一次之後就能離線使用（含聲音）。
 
 更新：`sw.js` 會先用快取開啟、背景下載新版，所以推上新版後「下次開啟」就是新版。
-新增檔案時要加進 `sw.js` 的 `PRECACHE`（`npm test` 會檢查有沒有漏）；需要強制清掉舊快取時把 `VERSION` 加一。
+新增檔案時要加進 `sw.js` 的 `PRECACHE`（`npm test` 會檢查有沒有漏）。
+每次發佈都把 `version.js` 與 `sw.js` 的 `VERSION` 一起加一（`npm test` 會檢查兩者一致）：新版會立刻接手，畫面左上角也會顯示新的版本號。
 
 ## 第三方資源
 

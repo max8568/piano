@@ -66,6 +66,15 @@ export function createPiano({ onStatus = () => {} } = {}) {
     }
   }
 
+  // 切到背景時主動暫停音訊。iOS 有時在背景待久了、或音訊被其他 App 搶走後，回來時 AudioContext
+  // 仍回報 'running' 卻已經不會出聲，遮罩也不會出現。自己先暫停，回來時狀態一定是 'suspended'，
+  // 遮罩會出現，點一下就由 unlock() 重新啟動。
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return;
+    silence.pause();
+    if (raw.state === 'running') raw.suspend().then(report, report);
+  });
+
   // 取樣還沒載完或音訊未啟動時不發聲（但仍會記譜）。
   function noteOn(pitch) {
     if (loaded && raw.state === 'running') sampler.triggerAttack(pitchName(pitch));

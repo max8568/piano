@@ -45,13 +45,12 @@ for (const button of toggleButtons) {
   });
 }
 
-// 重畫並捲到「最新音符貼在右側」，右邊留出切換按鈕的寬度，避免音符被擋住。
+// 重畫並捲到「最新音符停在畫面中間」，讓視線集中；音符還沒排到中間前不捲動。
 // 使用者滑回去看舊音符時，一按新鍵也會跳回這裡。
-const toggle = document.querySelector('.accidental-toggle');
 function render() {
-  const reserved = toggle.offsetWidth + 32;
-  const latestRight = staff.render(score.beats, reserved);
-  scroller.scrollLeft = latestRight === null ? 0 : latestRight - (scroller.clientWidth - reserved);
+  const center = scroller.clientWidth / 2;
+  const latestRight = staff.render(score.beats, center);
+  scroller.scrollLeft = latestRight === null ? 0 : latestRight - center;
 }
 
 createKeyboard(document.getElementById('keyboard'), {

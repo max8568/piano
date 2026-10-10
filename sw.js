@@ -3,7 +3,7 @@
 // 更新策略：頁面與程式先用快取回應（開啟快、離線可用），同時在背景抓新版存進快取，
 // 所以推上新版後，下次開啟 App 就會是新版。取樣音檔不會變，只用快取。
 // 需要強制清掉所有舊快取時，把 VERSION 加一。
-const VERSION = 1;
+const VERSION = 2;
 const CACHE = `piano-v${VERSION}`;
 
 const SAMPLES = ['C', 'Ds', 'Fs', 'A']
@@ -26,6 +26,7 @@ const PRECACHE = [
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
+  'audio/silence.wav',
   ...SAMPLES,
 ];
 

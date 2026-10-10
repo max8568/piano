@@ -178,6 +178,57 @@ body {
   color: var(--bg);
 }
 
+.audio-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(253, 252, 248, 0.85);
+  font-size: 28px;
+}
+
+.audio-gate-icon {
+  font-size: 64px;
+}
+
+.audio-gate[hidden],
+.audio-chip[hidden] {
+  display: none;
+}
+
+.audio-chip {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.debug {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 6;
+  max-width: 60vw;
+  margin: 0;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #0f0;
+  font-size: 11px;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+
 .rotate-hint {
   display: none;
 }

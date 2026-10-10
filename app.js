@@ -4,9 +4,33 @@ import { createScore, press } from './score.js';
 import { createPiano } from './sound.js';
 
 const score = createScore();
-const piano = createPiano();
-// iOS 有時只在 touchend 才允許啟動音訊，所以除了按鍵當下，放開時也再試一次。
-document.addEventListener('touchend', piano.unlock);
+
+// 音訊狀態顯示：
+// - 音訊還沒啟動（或從背景回來被暫停）時，蓋一層「點一下開始」，讓那一下成為合法的手勢來啟動音訊。
+// - 音色載入中或載入失敗時，在右上角顯示小標籤。
+const audioGate = document.getElementById('audio-gate');
+const audioChip = document.getElementById('audio-chip');
+const debugPanel = new URLSearchParams(location.search).has('debug') ? document.getElementById('debug') : null;
+function showAudioStatus({ context, loaded, error }) {
+  audioGate.hidden = context === 'running';
+  audioChip.hidden = loaded && !error;
+  audioChip.textContent = error ?? '音色載入中…';
+  if (debugPanel) {
+    debugPanel.hidden = false;
+    debugPanel.textContent = JSON.stringify({
+      context,
+      loaded,
+      error,
+      audioSession: navigator.audioSession?.type ?? '不支援',
+      standalone: navigator.standalone ?? matchMedia('(display-mode: standalone)').matches,
+      sw: navigator.serviceWorker?.controller ? '有' : '無',
+      ua: navigator.userAgent,
+    }, null, 1);
+  }
+}
+const piano = createPiano({ onStatus: showAudioStatus });
+// iOS／Chrome 只在 touchend、click 這類「放開」的手勢裡允許啟動音訊。
+for (const type of ['touchend', 'click']) document.addEventListener(type, piano.unlock);
 const scroller = document.getElementById('staff-scroll');
 const staff = createStaff(scroller, document.getElementById('staff-header'));
 
@@ -46,6 +70,11 @@ window.addEventListener('resize', render);
 render();
 
 // 離線使用：註冊 Service Worker（只在 http(s) 下可用）。
+// 有新版 Service Worker 接手時，如果還沒彈任何音，就重新載入直接換成新版。
 if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && score.beats.length === 0) location.reload();
+  });
   navigator.serviceWorker.register('sw.js');
 }

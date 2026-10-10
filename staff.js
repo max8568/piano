@@ -208,7 +208,12 @@ export function createStaff(scroller, header) {
     return best;
   }
 
-  return { render, noteAt };
+  // 把第 chordIndex 個和弦畫出來的音符加上 className（測驗模式標出答過的音、按錯時閃紅）。
+  function markChord(chordIndex, className) {
+    for (const head of heads) if (head.chordIndex === chordIndex) head.element.classList.add(className);
+  }
+
+  return { render, noteAt, markChord };
 }
 
 // 貫穿高音譜頂線到低音譜底線的小節線。

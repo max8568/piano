@@ -20,11 +20,22 @@
       <div id="staff-scroll" class="staff-scroll"></div>
       <div id="staff-header" class="staff-header"></div>
       <div class="staff-tools">
-        <button type="button" id="clear" class="clear-button" disabled>清除</button>
-        <div class="accidental-toggle" role="group" aria-label="黑鍵記法">
-          <button type="button" data-mode="sharp" aria-pressed="true">♯ 升</button>
-          <button type="button" data-mode="flat" aria-pressed="false">♭ 降</button>
+        <div class="compose-tools">
+          <button type="button" id="clear" class="tool-button" disabled>清除</button>
+          <div id="accidental-toggle" class="segmented" role="group" aria-label="黑鍵記法">
+            <button type="button" data-mode="sharp" aria-pressed="true">♯ 升</button>
+            <button type="button" data-mode="flat" aria-pressed="false">♭ 降</button>
+          </div>
         </div>
+        <div class="quiz-tools" hidden>
+          <span id="quiz-score" class="quiz-score" role="status"></span>
+          <div id="quiz-range" class="segmented" role="group" aria-label="測驗範圍">
+            <button type="button" data-range="treble" aria-pressed="true">高音</button>
+            <button type="button" data-range="bass" aria-pressed="false">低音</button>
+            <button type="button" data-range="both" aria-pressed="false">全部</button>
+          </div>
+        </div>
+        <button type="button" id="quiz-toggle" class="tool-button">測驗</button>
       </div>
     </section>
     <section id="keyboard" class="keyboard" aria-label="鋼琴鍵盤"></section>

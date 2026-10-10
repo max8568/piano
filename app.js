@@ -1,6 +1,7 @@
 import { createStaff } from './staff.js';
 import { createKeyboard } from './keyboard.js';
 import { createScore, press, hold, release, removeNote, clearScore } from './score.js';
+import { createQuiz, answer, setRange } from './quiz.js';
 import { attachDeleteGesture } from './delete-gesture.js';
 import { createPiano } from './sound.js';
 import { VERSION } from './version.js';
@@ -43,7 +44,7 @@ const staff = createStaff(scroller, document.getElementById('staff-header'));
 
 // 黑鍵記法：'sharp' 或 'flat'，只影響之後按下的鍵。
 let blackMode = 'sharp';
-const toggleButtons = document.querySelectorAll('.accidental-toggle button');
+const toggleButtons = document.querySelectorAll('#accidental-toggle button');
 for (const button of toggleButtons) {
   button.addEventListener('click', () => {
     blackMode = button.dataset.mode;
@@ -78,14 +79,19 @@ clearButton.addEventListener('click', () => {
 // 使用者滑回去看舊音符時，一按新鍵也會跳回這裡。
 function render() {
   clearButton.disabled = score.chords.length === 0;
+  showOnStaff(score.chords);
+}
+
+function showOnStaff(chords) {
   const center = scroller.clientWidth / 2;
-  const latestRight = staff.render(score.chords, center);
+  const latestRight = staff.render(chords, center);
   scroller.scrollLeft = latestRight === null ? 0 : latestRight - center;
 }
 
 // 長按音符後它會跟著手指移動，往上拉再放開就刪掉它。刪除後停在原本看的位置，不跳回最新音符。
+// 測驗模式時譜上是題目，不能刪。
 attachDeleteGesture(scroller, {
-  noteAt: staff.noteAt,
+  noteAt: (x, y, radius) => (quiz ? null : staff.noteAt(x, y, radius)),
   onDelete({ chordIndex, pitch }) {
     removeNote(score, chordIndex, pitch);
     clearButton.disabled = score.chords.length === 0;
@@ -107,11 +113,15 @@ function watchHold() {
   requestAnimationFrame(watchHold);
 }
 
-createKeyboard(document.getElementById('keyboard'), {
+const keyboard = createKeyboard(document.getElementById('keyboard'), {
   blackMode: () => blackMode,
   onPress(pitch) {
     // 先發聲再重畫，讓重畫的時間不影響聲音的延遲。
     piano.noteOn(pitch);
+    if (quiz) {
+      answerQuiz(pitch);
+      return;
+    }
     press(score, pitch, performance.now());
     render();
     if (!watchingHold) {
@@ -121,11 +131,83 @@ createKeyboard(document.getElementById('keyboard'), {
   },
   onRelease(pitch) {
     piano.noteOff(pitch);
-    if (release(score, pitch, performance.now())) render();
+    if (release(score, pitch, performance.now()) && !quiz) render();
   },
 });
 
-window.addEventListener('resize', render);
+// 測驗模式：譜上出一個音，按對應的琴鍵作答。只出白鍵，可以選高音譜、低音譜或兩行都出。
+// 答對：這題變綠留在譜上，下一題接在右邊（四分音符，每 4 題一個小節），譜跟著往右捲。
+// 答錯：按錯的鍵和題目閃紅一下，不換題，要按到對為止；不提示正確的鍵。
+// 測驗不會動到樂譜，結束後原本寫的音符都還在。
+const QUIZ_MISS_MS = 500;
+const quizToggle = document.getElementById('quiz-toggle');
+const composeTools = document.querySelector('.compose-tools');
+const quizTools = document.querySelector('.quiz-tools');
+const quizScore = document.getElementById('quiz-score');
+const rangeButtons = document.querySelectorAll('#quiz-range button');
+let quiz = null;
+let quizRange = 'treble';
+let missTimer = null;
+
+// 畫出答過的音（綠色）與目前的題目，題目停在畫面中間。
+function drawQuiz() {
+  showOnStaff([...quiz.history, quiz.target].map((pitch) => ({ pitches: [pitch], eighths: 2 })));
+  quiz.history.forEach((_, i) => staff.markChord(i, 'quiz-done'));
+}
+
+function showQuestion() {
+  clearMiss();
+  quizScore.textContent = `答對 ${quiz.correct}／${quiz.total}`;
+  drawQuiz();
+}
+
+function clearMiss() {
+  clearTimeout(missTimer);
+  keyboard.clearMarks();
+  for (const element of scroller.querySelectorAll('.quiz-miss')) element.classList.remove('quiz-miss');
+}
+
+function answerQuiz(pitch) {
+  if (answer(quiz, pitch)) {
+    showQuestion();
+    return;
+  }
+  clearMiss();
+  keyboard.mark(pitch, 'quiz-miss');
+  staff.markChord(quiz.history.length, 'quiz-miss');
+  missTimer = setTimeout(clearMiss, QUIZ_MISS_MS);
+}
+
+function startQuiz() {
+  disarmClear();
+  quiz = createQuiz(quizRange);
+  composeTools.hidden = true;
+  quizTools.hidden = false;
+  quizToggle.textContent = '結束';
+  showQuestion();
+}
+
+function endQuiz() {
+  clearMiss();
+  quiz = null;
+  composeTools.hidden = false;
+  quizTools.hidden = true;
+  quizToggle.textContent = '測驗';
+  render();
+}
+
+quizToggle.addEventListener('click', () => (quiz ? endQuiz() : startQuiz()));
+for (const button of rangeButtons) {
+  button.addEventListener('click', () => {
+    quizRange = button.dataset.range;
+    for (const b of rangeButtons) b.setAttribute('aria-pressed', String(b === button));
+    if (!quiz) return;
+    setRange(quiz, quizRange);
+    showQuestion();
+  });
+}
+
+window.addEventListener('resize', () => (quiz ? drawQuiz() : render()));
 render();
 
 // 離線使用：註冊 Service Worker（只在 http(s) 下可用）。
@@ -138,7 +220,7 @@ function registerServiceWorker() {
   registerServiceWorker.done = true;
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hadController && score.chords.length === 0) location.reload();
+    if (hadController && score.chords.length === 0 && !quiz) location.reload();
   });
   navigator.serviceWorker.register('sw.js');
 }

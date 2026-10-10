@@ -8,7 +8,7 @@ const { Renderer, Stave, StaveNote, GhostNote, Voice, Formatter, StaveConnector,
 const VIRTUAL_HEIGHT = 260; // 足夠容納 C6（上加兩線）到 C2（下加兩線）
 const TREBLE_Y = 10;
 const BASS_Y = 120;
-const STAVE_X = 10;
+const STAVE_X = 30; // 左邊留給大括號（畫在五線譜起點左側）
 const NOTE_SPACING = 44; // 每一拍佔的寬度
 const MEASURE_PADDING = 24; // 小節線前後的留白
 const MEASURE_WIDTH = BEATS_PER_MEASURE * NOTE_SPACING + MEASURE_PADDING;

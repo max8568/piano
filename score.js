@@ -34,6 +34,12 @@ export function removeNote(score, beatIndex, pitch) {
   score.lastBeatAt = -Infinity;
 }
 
+// 清除所有音符。
+export function clearScore(score) {
+  score.beats.length = 0;
+  score.lastBeatAt = -Infinity;
+}
+
 // 依 4/4 把拍分成小節；最後一個小節可能未滿。
 export function measures(beats) {
   const result = [];

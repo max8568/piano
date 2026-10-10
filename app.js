@@ -1,6 +1,6 @@
 import { createStaff } from './staff.js';
 import { createKeyboard } from './keyboard.js';
-import { createScore, press, removeNote } from './score.js';
+import { createScore, press, removeNote, clearScore } from './score.js';
 import { attachDeleteGesture } from './delete-gesture.js';
 import { createPiano } from './sound.js';
 import { VERSION } from './version.js';
@@ -48,9 +48,18 @@ for (const button of toggleButtons) {
   });
 }
 
+// 清除所有音符；無法復原，所以先確認。
+const clearButton = document.getElementById('clear');
+clearButton.addEventListener('click', () => {
+  if (!confirm('清除所有音符？')) return;
+  clearScore(score);
+  render();
+});
+
 // 重畫並捲到「最新音符停在畫面中間」，讓視線集中；音符還沒排到中間前不捲動。
 // 使用者滑回去看舊音符時，一按新鍵也會跳回這裡。
 function render() {
+  clearButton.disabled = score.beats.length === 0;
   const center = scroller.clientWidth / 2;
   const latestRight = staff.render(score.beats, center);
   scroller.scrollLeft = latestRight === null ? 0 : latestRight - center;
@@ -61,6 +70,7 @@ attachDeleteGesture(scroller, {
   noteAt: staff.noteAt,
   onDelete({ beatIndex, pitch }) {
     removeNote(score, beatIndex, pitch);
+    clearButton.disabled = score.beats.length === 0;
     const { scrollLeft } = scroller;
     staff.render(score.beats, scroller.clientWidth / 2);
     scroller.scrollLeft = scrollLeft;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createScore, press, measures, isComplete, accidentalMarks, removeNote } from './score.js';
+import { createScore, press, measures, isComplete, accidentalMarks, removeNote, clearScore } from './score.js';
 
 const p = (name) => {
   const [, letter, accidental, octave] = name.match(/^([a-g])([#b]?)(\d)$/);
@@ -100,4 +100,13 @@ test('找不到的音不動', () => {
   removeNote(score, 0, p('d4'));
   removeNote(score, 5, p('c4'));
   assert.deepEqual(score.beats, [[p('c4')]]);
+});
+
+test('清除後沒有任何拍，下一個按鍵從新的一拍開始', () => {
+  const score = createScore();
+  press(score, p('c4'), 1000);
+  clearScore(score);
+  assert.deepEqual(score.beats, []);
+  press(score, p('e4'), 1010);
+  assert.deepEqual(score.beats, [[p('e4')]]);
 });

@@ -167,11 +167,33 @@ body {
   pointer-events: none;
 }
 
-.accidental-toggle {
+.staff-tools {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 2;
+  display: flex;
+  gap: 12px;
+}
+
+.clear-button {
+  min-width: 72px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 20px;
+  touch-action: manipulation;
+}
+
+.clear-button:disabled {
+  opacity: 0.3;
+}
+
+.accidental-toggle {
   display: flex;
   border: 2px solid var(--ink);
   border-radius: 10px;

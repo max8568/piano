@@ -1,6 +1,6 @@
 import { createStaff } from './staff.js';
 import { createKeyboard } from './keyboard.js';
-import { createScore, addBeat } from './score.js';
+import { createScore, press } from './score.js';
 
 const score = createScore();
 const scroller = document.getElementById('staff-scroll');
@@ -28,7 +28,7 @@ function render() {
 createKeyboard(document.getElementById('keyboard'), {
   blackMode: () => blackMode,
   onPress(pitch) {
-    addBeat(score, [pitch]);
+    press(score, pitch, performance.now());
     render();
   },
 });

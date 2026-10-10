@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createScore, addBeat, measures, isComplete, accidentalMarks } from './score.js';
+import { createScore, press, measures, isComplete, accidentalMarks } from './score.js';
 
 const p = (name) => {
   const [, letter, accidental, octave] = name.match(/^([a-g])([#b]?)(\d)$/);
@@ -9,7 +9,7 @@ const p = (name) => {
 
 test('每 4 拍一個小節，最後一個小節可以未滿', () => {
   const score = createScore();
-  for (let i = 0; i < 9; i++) addBeat(score, [p('c4')]);
+  for (let i = 0; i < 9; i++) press(score, p('c4'), i * 1000);
   const ms = measures(score.beats);
   assert.deepEqual(ms.map((m) => m.length), [4, 4, 1]);
   assert.deepEqual(ms.map(isComplete), [true, true, false]);
@@ -43,4 +43,28 @@ test('新小節重置（每個小節各自計算）', () => {
 
 test('和弦裡每個音各自判斷', () => {
   assert.deepEqual(accidentalMarks([[p('c#4'), p('e4')], [p('c4'), p('eb4')]]), [['#', null], ['n', 'b']]);
+});
+
+test('80ms 內按下的鍵合併成同一拍的和弦', () => {
+  const score = createScore();
+  press(score, p('c4'), 1000);
+  press(score, p('e4'), 1030);
+  press(score, p('g3'), 1080);
+  assert.deepEqual(score.beats, [[p('c4'), p('e4'), p('g3')]]);
+});
+
+test('超過 80ms 就是新的一拍（從這拍第一個鍵起算）', () => {
+  const score = createScore();
+  press(score, p('c4'), 1000);
+  press(score, p('e4'), 1050);
+  press(score, p('g4'), 1081);
+  assert.deepEqual(score.beats, [[p('c4'), p('e4')], [p('g4')]]);
+});
+
+test('同一拍裡重複的琴鍵只算一次', () => {
+  const score = createScore();
+  press(score, p('f#4'), 0);
+  press(score, p('gb4'), 10);
+  press(score, p('f#4'), 20);
+  assert.deepEqual(score.beats, [[p('f#4')]]);
 });

@@ -1,14 +1,25 @@
 // 樂譜資料模型：一串「拍」，每一拍是一組同時按下的音（和弦），每拍都是四分音符。
-import { staffFor } from './music.js';
+import { staffFor, midi } from './music.js';
 
 export const BEATS_PER_MEASURE = 4; // 4/4
 
+// 在這段時間（毫秒）內按下的鍵，算成同一拍的和弦。
+export const CHORD_WINDOW_MS = 80;
+
 export function createScore() {
-  return { beats: [] };
+  return { beats: [], lastBeatAt: -Infinity };
 }
 
-export function addBeat(score, pitches) {
-  score.beats.push([...pitches]);
+// 在時間 time（毫秒）按下 pitch：距離目前這拍第一個鍵不到 CHORD_WINDOW_MS 就加進和弦，
+// 否則開始新的一拍。同一拍裡重複的音（同一個琴鍵）忽略。
+export function press(score, pitch, time) {
+  const current = score.beats.at(-1);
+  if (current && time - score.lastBeatAt <= CHORD_WINDOW_MS) {
+    if (!current.some((p) => midi(p) === midi(pitch))) current.push(pitch);
+    return;
+  }
+  score.beats.push([pitch]);
+  score.lastBeatAt = time;
 }
 
 // 依 4/4 把拍分成小節；最後一個小節可能未滿。

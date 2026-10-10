@@ -1,6 +1,6 @@
 import { createStaff } from './staff.js';
 import { createKeyboard } from './keyboard.js';
-import { createScore, press, removeNote, clearScore } from './score.js';
+import { createScore, press, hold, release, removeNote, clearScore } from './score.js';
 import { attachDeleteGesture } from './delete-gesture.js';
 import { createPiano } from './sound.js';
 import { VERSION } from './version.js';
@@ -77,23 +77,35 @@ clearButton.addEventListener('click', () => {
 // 重畫並捲到「最新音符停在畫面中間」，讓視線集中；音符還沒排到中間前不捲動。
 // 使用者滑回去看舊音符時，一按新鍵也會跳回這裡。
 function render() {
-  clearButton.disabled = score.beats.length === 0;
+  clearButton.disabled = score.chords.length === 0;
   const center = scroller.clientWidth / 2;
-  const latestRight = staff.render(score.beats, center);
+  const latestRight = staff.render(score.chords, center);
   scroller.scrollLeft = latestRight === null ? 0 : latestRight - center;
 }
 
 // 長按音符後它會跟著手指移動，往上拉再放開就刪掉它。刪除後停在原本看的位置，不跳回最新音符。
 attachDeleteGesture(scroller, {
   noteAt: staff.noteAt,
-  onDelete({ beatIndex, pitch }) {
-    removeNote(score, beatIndex, pitch);
-    clearButton.disabled = score.beats.length === 0;
+  onDelete({ chordIndex, pitch }) {
+    removeNote(score, chordIndex, pitch);
+    clearButton.disabled = score.chords.length === 0;
     const { scrollLeft } = scroller;
-    staff.render(score.beats, scroller.clientWidth / 2);
+    staff.render(score.chords, scroller.clientWidth / 2);
     scroller.scrollLeft = scrollLeft;
   },
 });
+
+// 按住琴鍵時每一格畫面檢查一次按了多久，音符一變長（四分→二分→全音符）就重畫，
+// 讓人看得到什麼時候該放開。鍵都放開後就停止檢查。
+let watchingHold = false;
+function watchHold() {
+  if (!score.holding) {
+    watchingHold = false;
+    return;
+  }
+  if (hold(score, performance.now())) render();
+  requestAnimationFrame(watchHold);
+}
 
 createKeyboard(document.getElementById('keyboard'), {
   blackMode: () => blackMode,
@@ -102,9 +114,14 @@ createKeyboard(document.getElementById('keyboard'), {
     piano.noteOn(pitch);
     press(score, pitch, performance.now());
     render();
+    if (!watchingHold) {
+      watchingHold = true;
+      requestAnimationFrame(watchHold);
+    }
   },
   onRelease(pitch) {
     piano.noteOff(pitch);
+    if (release(score, pitch, performance.now())) render();
   },
 });
 
@@ -121,7 +138,7 @@ function registerServiceWorker() {
   registerServiceWorker.done = true;
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hadController && score.beats.length === 0) location.reload();
+    if (hadController && score.chords.length === 0) location.reload();
   });
   navigator.serviceWorker.register('sw.js');
 }

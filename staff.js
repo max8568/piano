@@ -1,69 +1,98 @@
 // 用 VexFlow 畫大譜表與音符。VexFlow 由 index.html 以一般 script 載入（全域 Vex）。
 import { staffFor, vexKey } from './music.js';
+import { measures, isComplete, BEATS_PER_MEASURE } from './score.js';
 
-const { Renderer, Stave, StaveNote, GhostNote, Voice, Formatter, StaveConnector } = Vex.Flow;
+const { Renderer, Stave, StaveNote, GhostNote, Voice, Formatter, StaveConnector, Barline } = Vex.Flow;
 
 // 以下為 VexFlow 的「虛擬座標」，實際畫面再依高度等比例縮放。
 const VIRTUAL_HEIGHT = 260; // 足夠容納 C6（上加兩線）到 C2（下加兩線）
 const TREBLE_Y = 10;
 const BASS_Y = 120;
 const STAVE_X = 10;
-const NOTE_SPACING = 44; // 每個四分音符佔的寬度
+const NOTE_SPACING = 44; // 每一拍佔的寬度
+const MEASURE_PADDING = 24; // 小節線前後的留白
+const MEASURE_WIDTH = BEATS_PER_MEASURE * NOTE_SPACING + MEASURE_PADDING;
 const END_PADDING = 30;
+
+// 一拍在某一行（高音或低音譜）的音符；這行沒有音就用 GhostNote 佔位，讓上下對齊。
+function beatNote(beat, staff) {
+  const pitches = beat.filter((p) => staffFor(p) === staff);
+  if (pitches.length === 0) return new GhostNote({ duration: 'q' });
+  return new StaveNote({ clef: staff, keys: pitches.map(vexKey), duration: 'q', auto_stem: true });
+}
+
+function voiceOf(tickables) {
+  return new Voice({ num_beats: tickables.length, beat_value: 4 }).addTickables(tickables);
+}
 
 export function createStaff(container) {
   const renderer = new Renderer(container, Renderer.Backends.SVG);
 
-  function render(notes) {
+  function render(beats) {
     const scale = container.clientHeight / VIRTUAL_HEIGHT;
     const viewWidth = container.clientWidth / scale;
 
-    // 先建一個暫時的 stave 算出音符起點（譜號＋拍號之後）。
+    // 第一小節前面多了譜號＋拍號，先用暫時的 stave 算出寬度。
     const probe = new Stave(STAVE_X, TREBLE_Y, 100).addClef('treble').addTimeSignature('4/4');
-    const notesStartOffset = probe.getNoteStartX() - STAVE_X;
+    const headerWidth = probe.getNoteStartX() - STAVE_X;
 
-    const notesWidth = notes.length * NOTE_SPACING;
-    const staveWidth = Math.max(viewWidth - STAVE_X * 2, notesStartOffset + notesWidth + END_PADDING);
+    const ms = measures(beats);
+    const measureCount = Math.max(ms.length, 1);
+    const contentWidth = headerWidth + measureCount * MEASURE_WIDTH + END_PADDING;
+    const totalWidth = Math.max(viewWidth - STAVE_X * 2, contentWidth);
 
-    const virtualWidth = staveWidth + STAVE_X * 2;
+    const virtualWidth = totalWidth + STAVE_X * 2;
     renderer.resize(virtualWidth * scale, VIRTUAL_HEIGHT * scale);
     const ctx = renderer.getContext();
     ctx.clear();
     // 不用 ctx.scale()：它會在每次重畫時累乘。直接設定 viewBox 達到等比例縮放。
     ctx.setViewBox(0, 0, virtualWidth, VIRTUAL_HEIGHT);
 
-    const treble = new Stave(STAVE_X, TREBLE_Y, staveWidth).addClef('treble').addTimeSignature('4/4');
-    const bass = new Stave(STAVE_X, BASS_Y, staveWidth).addClef('bass').addTimeSignature('4/4');
-    treble.setContext(ctx).draw();
-    bass.setContext(ctx).draw();
-    new StaveConnector(treble, bass).setType('brace').setContext(ctx).draw();
-    new StaveConnector(treble, bass).setType('singleLeft').setContext(ctx).draw();
-    new StaveConnector(treble, bass).setType('singleRight').setContext(ctx).draw();
+    let x = STAVE_X;
+    for (let i = 0; i < measureCount; i++) {
+      const measure = ms[i] ?? [];
+      const first = i === 0;
+      const last = i === measureCount - 1;
+      // 最後一個小節的五線延伸到畫面右邊。
+      const width = last ? STAVE_X + totalWidth - x : (first ? headerWidth : 0) + MEASURE_WIDTH;
 
-    if (notes.length === 0) return;
-
-    // 每一拍兩行都要有東西：有音符的那行放 StaveNote，另一行放 GhostNote 佔位，讓上下對齊。
-    const trebleNotes = [];
-    const bassNotes = [];
-    for (const pitch of notes) {
-      const staff = staffFor(pitch);
-      const note = new StaveNote({ clef: staff, keys: [vexKey(pitch)], duration: 'q', auto_stem: true });
-      if (staff === 'treble') {
-        trebleNotes.push(note);
-        bassNotes.push(new GhostNote({ duration: 'q' }));
-      } else {
-        bassNotes.push(note);
-        trebleNotes.push(new GhostNote({ duration: 'q' }));
+      const treble = new Stave(x, TREBLE_Y, width);
+      const bass = new Stave(x, BASS_Y, width);
+      for (const [stave, clef] of [[treble, 'treble'], [bass, 'bass']]) {
+        if (first) stave.addClef(clef).addTimeSignature('4/4');
+        else stave.setBegBarType(Barline.type.NONE);
+        // 小節線另外畫成貫穿上下兩行的一條線（drawBarline）。
+        stave.setEndBarType(Barline.type.NONE);
+        stave.setContext(ctx).draw();
       }
+      if (first) {
+        new StaveConnector(treble, bass).setType('brace').setContext(ctx).draw();
+        new StaveConnector(treble, bass).setType('singleLeft').setContext(ctx).draw();
+      }
+
+      if (measure.length > 0) {
+        const trebleVoice = voiceOf(measure.map((beat) => beatNote(beat, 'treble')));
+        const bassVoice = voiceOf(measure.map((beat) => beatNote(beat, 'bass')));
+        new Formatter()
+          .joinVoices([trebleVoice])
+          .joinVoices([bassVoice])
+          .format([trebleVoice, bassVoice], measure.length * NOTE_SPACING);
+        trebleVoice.draw(ctx, treble);
+        bassVoice.draw(ctx, bass);
+      }
+
+      const barX = x + (first ? headerWidth : 0) + MEASURE_WIDTH;
+      if (isComplete(measure)) drawBarline(ctx, barX);
+      x = barX;
     }
-
-    const trebleVoice = new Voice({ num_beats: notes.length, beat_value: 4 }).addTickables(trebleNotes);
-    const bassVoice = new Voice({ num_beats: notes.length, beat_value: 4 }).addTickables(bassNotes);
-
-    new Formatter().joinVoices([trebleVoice]).joinVoices([bassVoice]).format([trebleVoice, bassVoice], notesWidth);
-    trebleVoice.draw(ctx, treble);
-    bassVoice.draw(ctx, bass);
   }
 
   return { render };
+}
+
+// 貫穿高音譜頂線到低音譜底線的小節線。
+function drawBarline(ctx, x) {
+  const top = new Stave(0, TREBLE_Y, 10).getYForLine(0);
+  const bottom = new Stave(0, BASS_Y, 10).getYForLine(4);
+  ctx.fillRect(x - 1, top, 1, bottom - top);
 }

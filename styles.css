@@ -59,6 +59,10 @@ body {
   scrollbar-width: none;
 }
 
+.staff-scroll.locked {
+  overflow-x: hidden;
+}
+
 .staff-scroll::-webkit-scrollbar {
   display: none;
 }

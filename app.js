@@ -72,9 +72,9 @@ function debugLog(message) {
 }
 if (debugPanel) {
   window.addEventListener('error', (event) => debugLog(`錯誤 ${event.message}`));
-  document.addEventListener('touchstart', (event) => {
+  document.addEventListener('pointerdown', (event) => {
     const target = event.target;
-    debugLog(`觸控目標 ${target.tagName}.${target.getAttribute('class') ?? ''}`);
+    debugLog(`觸控目標 ${event.pointerType} ${target.tagName}.${target.getAttribute('class') ?? ''}`);
   }, { capture: true });
 }
 

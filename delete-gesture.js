@@ -1,5 +1,8 @@
 // 刪除音符的手勢：手指按住樂譜上的音符一段時間（音符被紅圈圈起），再往上滑就刪掉它。
 // 按住期間手指一移動就取消，讓一般的左右捲動不受影響。
+//
+// 用 pointer events 而不是 touch events：iPad 的 Safari 預設以「桌面版網站」模式開啟，
+// 這時不會送 touch events 給網頁（鍵盤能用也是因為走 pointer events）。
 
 const HOLD_MS = 450; // 按住多久才選中音符
 const MOVE_TOLERANCE = 10; // 選中前手指可以晃動的距離（px），超過就當成捲動
@@ -12,52 +15,47 @@ const HIT_RADIUS = 28; // 手指離符頭中心多遠以內算按到（px）
 export function attachDeleteGesture(scroller, marker, { noteAt, onDelete, log = () => {} }) {
   let gesture = null; // { id, startX, startY, head, timer, selected }
 
-  function hideMarker() {
-    marker.hidden = true;
-    marker.classList.remove('deleting');
-    marker.style.transform = '';
-  }
-
   function end() {
     if (!gesture) return;
     clearTimeout(gesture.timer);
     gesture = null;
+    marker.hidden = true;
+    marker.classList.remove('deleting');
+    marker.style.transform = '';
+    scroller.classList.remove('locked');
   }
 
-  function touchOf(event) {
-    return gesture && [...event.changedTouches].find((t) => t.identifier === gesture.id);
-  }
+  const ours = (event) => gesture && event.pointerId === gesture.id;
 
-  scroller.addEventListener('touchstart', (event) => {
-    if (gesture || event.touches.length !== 1) {
-      log(`start 多指 ${event.touches.length}，取消`);
+  scroller.addEventListener('pointerdown', (event) => {
+    if (gesture) {
+      log('第二根手指，取消');
       return end();
     }
-    const touch = event.changedTouches[0];
     const rect = scroller.getBoundingClientRect();
-    const x = touch.clientX - rect.left + scroller.scrollLeft;
-    const y = touch.clientY - rect.top;
+    const x = event.clientX - rect.left + scroller.scrollLeft;
+    const y = event.clientY - rect.top;
     const nearest = noteAt(x, y, Infinity);
     const distance = nearest ? Math.round(Math.hypot(nearest.x - x, nearest.y - y)) : null;
     log(`start (${Math.round(x)},${Math.round(y)}) 最近符頭 ${nearest ? `(${Math.round(nearest.x)},${Math.round(nearest.y)}) 距離 ${distance}` : '無'}`);
-    const head = distance !== null && distance <= HIT_RADIUS ? nearest : null;
-    if (!head) return;
-    gesture = { id: touch.identifier, startX: touch.clientX, startY: touch.clientY, head, selected: false };
+    if (distance === null || distance > HIT_RADIUS) return;
+    const head = nearest;
+    gesture = { id: event.pointerId, startX: event.clientX, startY: event.clientY, head, selected: false };
     gesture.timer = setTimeout(() => {
       log('選中');
       gesture.selected = true;
+      // 選中後鎖住捲動，手指往上滑時稍微偏左右也不會把譜捲走。
+      scroller.classList.add('locked');
       marker.style.left = `${head.x - scroller.scrollLeft}px`;
       marker.style.top = `${head.y}px`;
       marker.hidden = false;
     }, HOLD_MS);
   });
 
-  // 不能是 passive：選中後要擋掉捲動，讓手指專心上滑。
-  scroller.addEventListener('touchmove', (event) => {
-    const touch = touchOf(event);
-    if (!touch) return;
-    const dx = touch.clientX - gesture.startX;
-    const dy = touch.clientY - gesture.startY;
+  scroller.addEventListener('pointermove', (event) => {
+    if (!ours(event)) return;
+    const dx = event.clientX - gesture.startX;
+    const dy = event.clientY - gesture.startY;
     if (!gesture.selected) {
       if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
         log(`選中前移動 ${Math.round(Math.hypot(dx, dy))}px，取消`);
@@ -65,25 +63,27 @@ export function attachDeleteGesture(scroller, marker, { noteAt, onDelete, log = 
       }
       return;
     }
-    event.preventDefault();
     const up = Math.max(0, -dy);
     marker.style.transform = `translateY(${-up}px)`;
     marker.classList.toggle('deleting', up >= SWIPE_UP);
+  });
+
+  // 有 touch events 的瀏覽器：選中後擋掉觸控捲動（pointer events 無法用 preventDefault 擋捲動）。
+  scroller.addEventListener('touchmove', (event) => {
+    if (gesture?.selected) event.preventDefault();
   }, { passive: false });
 
-  scroller.addEventListener('touchend', (event) => {
-    const touch = touchOf(event);
-    if (!touch) return;
-    log(`end 選中=${gesture.selected} 上滑 ${Math.round(gesture.startY - touch.clientY)}px`);
-    if (gesture.selected && gesture.startY - touch.clientY >= SWIPE_UP) onDelete(gesture.head);
-    hideMarker();
+  scroller.addEventListener('pointerup', (event) => {
+    if (!ours(event)) return;
+    const up = gesture.startY - event.clientY;
+    log(`end 選中=${gesture.selected} 上滑 ${Math.round(up)}px`);
+    if (gesture.selected && up >= SWIPE_UP) onDelete(gesture.head);
     end();
   });
 
-  scroller.addEventListener('touchcancel', (event) => {
-    if (!touchOf(event)) return;
+  scroller.addEventListener('pointercancel', (event) => {
+    if (!ours(event)) return;
     log(`cancel 選中=${gesture.selected}`);
-    hideMarker();
     end();
   });
 }
